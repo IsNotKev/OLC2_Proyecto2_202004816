@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 import json
 from instrucciones import Llamado
+from Generador3D import Generador3D
 
 import gramatica as g
 import ts as TS
@@ -20,13 +21,21 @@ def ejecutar():
 
   instrucciones = g.parse(codigo)
   ts_global = TS.TablaDeSimbolos()
+  Generador3DInstancia = Generador3D()
+  
 
-  #Ejecutar.guardarFunciones(instrucciones, ts_global)
+  Ejecutar.guardarFunciones(instrucciones, ts_global)
 
-  #consola = Ejecutar.procesar_instrucciones([Llamado("main",[])], ts_global)['consola']
-
+  if ts_global.existeFuncion("main"):
+    instrucciones = ts_global.obtenerFuncion("main").instrucciones
+    for instr in instrucciones:
+      Generador3DInstancia.agregarInstruccion(Ejecutar.procesar_instrucciones(instr, ts_global, Generador3DInstancia))
+  else:
+    salida = "No Existe Función Main."
+  
+  salida = Generador3DInstancia.generarMain()
   objeto = {
-            'Mensaje': 'En Progreso'
+            'Mensaje': salida
         }
 
   return jsonify(objeto)

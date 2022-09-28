@@ -22,6 +22,22 @@ class TIPO_VAR(Enum):
     MUTABLE = 1
     INMUTABLE = 2
 
+class RetornoType:
+
+    def __init__(self, tipo=TIPO_DATO.VOID):
+        self.codigo = ""
+        self.etiqueta = ""
+        self.temporal = ""
+        self.tipo = tipo
+        self.etiquetaV = ""
+        self.etiquetaF = ""
+
+    def iniciarRetorno(self, codigo, etiqueta, temporal, tipo):
+        self.codigo = codigo
+        self.temporal = temporal
+        self.etiqueta = etiqueta
+        self.tipo = tipo
+
 class Simbolo() :
     'Esta clase representa un simbolo dentro de nuestra tabla de simbolos'
 
@@ -123,6 +139,12 @@ class TablaDeSimbolos() :
             print('Error: funcion ', id, ' no definida.')
         else:
             return self.funciones[id]
+
+    def existeFuncion(self,id):
+        if not id in self.funciones :
+            return False
+        else:
+            return True
 
     def obtenerSimbolo(self, id) :
         if not id in self.simbolos :

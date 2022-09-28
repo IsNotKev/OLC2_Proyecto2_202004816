@@ -89,7 +89,10 @@ function App() {
           <Editor
             height="75vh"
             width="60vh"
-            defaultValue="// Empieza con Rust"
+            defaultValue="// Empieza con Rust
+                          fn main(){
+                            
+                          }"
             onMount={handleEditorDidMount}
             className={'rounded-xl'}
             theme="vs-dark"

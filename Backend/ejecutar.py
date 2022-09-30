@@ -17,6 +17,30 @@ def guardar_funcion(instr,ts):
 
 def procesar_instrucciones(instr, ts, Generador3D) :
     if isinstance(instr, Imprimir) : return procesar_imprimir(instr, ts, Generador3D)
+    elif isinstance(instr, Definicion) : return procesar_definicion(instr, ts, Generador3D)
+
+def procesar_definicion(instr, ts, Generador3D):
+    CODIGO_SALIDA = ""
+
+    valorExpresion = resolverExpresion(instr.dato,ts,Generador3D)
+
+    tamanioEntorno = len(ts.simbolos)
+    temp1 = Generador3D.obtenerTemporal()
+
+    PUNTERO_ENTORNO = "S"
+    SEGMENTO_MEMORIA = "Stack"
+
+    CODIGO_SALIDA += "/* DECLARACIÓN DE UNA VARIABLE */\n"
+    CODIGO_SALIDA += valorExpresion.codigo + '\n'
+    CODIGO_SALIDA += f'{temp1} = {PUNTERO_ENTORNO} + {tamanioEntorno}; \n'
+    CODIGO_SALIDA += f'{SEGMENTO_MEMORIA}[(int) {temp1}] = {valorExpresion.temporal};\n'
+
+    nsimbolo = Simbolo(instr.id,instr.tipo_var,instr.tipo_dato,valorExpresion,tamanioEntorno)
+
+    ts.agregarSimbolo(nsimbolo)
+    
+
+    return CODIGO_SALIDA
 
 def procesar_imprimir(instr, ts, Generador3D):
     CODIGO_SALIDA = ""
@@ -56,7 +80,16 @@ def procesar_imprimir(instr, ts, Generador3D):
 
 def resolverExpresion(exp, ts, Generador3D):
     if isinstance(exp, ExpresionDobleComilla): return resolverCadena(exp, Generador3D)
+    elif isinstance(exp, ExpresionNumero): return resolverNumero(exp, Generador3D)
+    elif isinstance(exp, ExpresionBinaria): return resolverExpresionBinaria(exp, ts, Generador3D)
 
+def resolverNumero(exp, Generador3D):
+    CODIGO_SALIDA = ""
+    retorno = RetornoType()
+    temp1 = Generador3D.obtenerTemporal()
+    CODIGO_SALIDA += f'{temp1} = {exp.val};'
+    retorno.iniciarRetorno(CODIGO_SALIDA,"", temp1, exp.tipo)
+    return retorno
 
 def resolverCadena(exp, Generador3D):
     CODIGO_SALIDA = ""
@@ -75,6 +108,79 @@ def resolverCadena(exp, Generador3D):
 
     retorno.iniciarRetorno(CODIGO_SALIDA, "", temp2, exp.tipo)
     return retorno
+
+def resolverExpresionBinaria(exp, ts, Generador3D):
+    if exp.operador == OPERACION_ARITMETICA.MAS: return operacionSuma(exp, ts, Generador3D)
+    elif exp.operador == OPERACION_ARITMETICA.MENOS: return operacionResta(exp, ts, Generador3D)
+
+def operacionResta(exp, ts, Generador3D):
+
+        CODIGO_SALIDA = ""
+        RETORNO = RetornoType()
+
+        izq3D = resolverExpresion(exp.exp1, ts, Generador3D)
+        der3D = resolverExpresion(exp.exp2, ts, Generador3D)
+
+        TEMP1 = Generador3D.obtenerTemporal()
+
+        if izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.INT64 :
+
+            CODIGO_SALIDA += izq3D.codigo +"\n"
+            CODIGO_SALIDA += der3D.codigo +"\n"
+            CODIGO_SALIDA += f'{TEMP1} = {izq3D.temporal} - {der3D.temporal};\n'
+
+            RETORNO.iniciarRetorno(CODIGO_SALIDA,"",TEMP1,TIPO_DATO.INT64)
+        elif izq3D.tipo == TIPO_DATO.FLOAT64 and der3D.tipo == TIPO_DATO.FLOAT64:
+
+            CODIGO_SALIDA += izq3D.codigo +"\n"
+            CODIGO_SALIDA += der3D.codigo +"\n"
+            CODIGO_SALIDA += f'{TEMP1} = {izq3D.temporal} - {der3D.temporal};\n'
+
+            RETORNO.iniciarRetorno(CODIGO_SALIDA,"",TEMP1,TIPO_DATO.FLOAT64)
+
+        return  RETORNO
+
+def operacionSuma(exp, ts, Generador3D):
+
+        CODIGO_SALIDA = ""
+        RETORNO = RetornoType()
+
+        izq3D = resolverExpresion(exp.exp1, ts, Generador3D)
+        der3D = resolverExpresion(exp.exp2, ts, Generador3D)
+
+        TEMP1 = Generador3D.obtenerTemporal()
+
+        if izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.INT64 :
+
+            CODIGO_SALIDA += izq3D.codigo +"\n"
+            CODIGO_SALIDA += der3D.codigo +"\n"
+            CODIGO_SALIDA += f'{TEMP1} = {izq3D.temporal} + {der3D.temporal};\n'
+
+            RETORNO.iniciarRetorno(CODIGO_SALIDA,"",TEMP1,TIPO_DATO.INT64)
+
+        elif izq3D.tipo == TIPO_DATO.FLOAT64 and der3D.tipo == TIPO_DATO.FLOAT64:
+
+            CODIGO_SALIDA += izq3D.codigo +"\n"
+            CODIGO_SALIDA += der3D.codigo +"\n"
+            CODIGO_SALIDA += f'{TEMP1} = {izq3D.temporal} + {der3D.temporal};\n'
+
+            RETORNO.iniciarRetorno(CODIGO_SALIDA,"",TEMP1,TIPO_DATO.FLOAT64)
+
+        #elif tipoDominante == TIPO_DATO.CADENA:
+        #    TEMP2 = entorno.generador.obtenerTemporal()
+#
+        #    CODIGO_SALIDA += izq3D.codigo
+        #    CODIGO_SALIDA += der3D.codigo
+        #    CODIGO_SALIDA += f'{TEMP2} = HP;\n'
+        #    CODIGO_SALIDA += self.operacionConcatenar(entorno,izq3D)
+        #    CODIGO_SALIDA += self.operacionConcatenar(entorno,der3D)
+        #    CODIGO_SALIDA += f'Heap[HP] = 0;\n'
+        #    CODIGO_SALIDA += f'HP = HP + 1;\n'
+#
+        #    RETORNO.iniciarRetorno(CODIGO_SALIDA,"",TEMP2,TIPO_DATO.CADENA)
+
+        return  RETORNO
+
 
 #def procesar_instrucciones(instrucciones, ts) :
 #    ## lista de instrucciones recolectadas

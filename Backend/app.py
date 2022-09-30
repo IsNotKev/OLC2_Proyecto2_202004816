@@ -23,7 +23,6 @@ def ejecutar():
   ts_global = TS.TablaDeSimbolos()
   Generador3DInstancia = Generador3D()
   
-
   Ejecutar.guardarFunciones(instrucciones, ts_global)
 
   if ts_global.existeFuncion("main"):

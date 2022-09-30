@@ -41,12 +41,13 @@ class RetornoType:
 class Simbolo() :
     'Esta clase representa un simbolo dentro de nuestra tabla de simbolos'
 
-    def __init__(self, id, tipo_var, tipo_dato,valor, capacity = None) :
+    def __init__(self, id, tipo_var, tipo_dato,valor, direccionRelativa, capacity = None) :
         self.id = id
         self.tipo_var = tipo_var
         self.tipo_dato = tipo_dato
         self.valor = valor
         self.capacity = capacity
+        self.direccionRelativa = direccionRelativa
 
 class Funcion():
     def __init__(self, id, parametros, instrucciones, tipo_dato):

@@ -35,7 +35,7 @@ int H = 0;
                 encabezado += "\n"
             encabezado += f"t{i}"
             if i < self.temporales - 1:
-                encabezado += ","
+                encabezado += ", "
 
         if self.temporales > 0:
             encabezado += "; \n\n"

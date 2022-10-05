@@ -31,7 +31,7 @@ int H = 0;
         if self.temporales > 0:
             encabezado += "float "
         for i in range(0, self.temporales):
-            if i % 15 == 0 and i > 0:
+            if i % 10 == 0 and i > 0:
                 encabezado += "\n"
             encabezado += f"t{i}"
             if i < self.temporales - 1:

@@ -1,4 +1,5 @@
 from enum import Enum
+from traceback import print_tb
 
 class TIPO_DATO(Enum) :
     INT64 = 1
@@ -121,14 +122,17 @@ class TablaDeSimbolos() :
                     self.simbolos[simbolo.id] = simbolo
                 elif simbolo.tipo_dato == TIPO_DATO.USIZE and simbolo.valor.tipo == TIPO_DATO.INT64 and simbolo.valor.val >= 0:
                     self.simbolos[simbolo.id] = simbolo
-                else:
-                    print('Error al asignar',simbolo.id, simbolo.valor.val)
+                else:                 
+                    print('Error al asignar',simbolo.id, simbolo.valor.tipo)
+                    return None
             else:
                 simbolo.tipo_dato = simbolo.valor.tipo
                 self.simbolos[simbolo.id] = simbolo
 
         else:
             self.simbolos[simbolo.id] = simbolo
+        
+        return self.simbolos[simbolo.id]
     
     def agregarFuncion(self, funcion):
         self.funciones[funcion.id] = funcion
@@ -238,16 +242,21 @@ class TablaDeSimbolos() :
     def actualizarSimbolo(self, id, nval) :
         if not id in self.simbolos :
             print('Error: variable ', id, ' no definida.')
+            return None
         else :
             simboloAux = self.obtenerSimbolo(id)
             if simboloAux.tipo_var == TIPO_VAR.MUTABLE:
                 if nval.tipo == simboloAux.tipo_dato:
                     simboloAux.valor = nval               
                     self.simbolos[simboloAux.id] = simboloAux
+                    return self.simbolos[simboloAux.id]
                 elif simboloAux.tipo_dato == TIPO_DATO.USIZE and nval.tipo == TIPO_DATO.INT64 and nval.val >= 0:
                     simboloAux.valor = nval
                     self.simbolos[simboloAux.id] = simboloAux
+                    return self.simbolos[simboloAux.id]
                 else:
-                    print('Error al asignar',id, nval.val)
+                    print('Error al asignar',id, nval.tipo)
+                    return None
             else:
                 print('No se puede actualizar una variable Inmutable')
+                return None

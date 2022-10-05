@@ -1,6 +1,4 @@
 from enum import Enum
-from operator import truediv
-from pydoc import resolve
 
 class TIPO_DATO(Enum) :
     INT64 = 1
@@ -150,6 +148,7 @@ class TablaDeSimbolos() :
     def obtenerSimbolo(self, id) :
         if not id in self.simbolos :
             print('Error: variable ', id, ' no definida.')
+            return None
         else:
             return self.simbolos[id]
 

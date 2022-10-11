@@ -1,3 +1,5 @@
+from doctest import ELLIPSIS_MARKER
+from xml.etree.ElementTree import tostring
 from ts import TIPO_VAR, Simbolo, TIPO_DATO, RetornoType
 from expresiones import *
 from instrucciones import *
@@ -154,12 +156,27 @@ def procesar_imprimir(instr, ts, Generador3D):
                     #CODIGO_SALIDA += f'got {etqCiclo}; '
 
                     CODIGO_SALIDA += f'{etqAuxiliar}: \n'
-                    CODIGO_SALIDA += f'if({caracter} == 0) goto {etqSalida};\n' \
+                    CODIGO_SALIDA += f'if ({caracter} == 0) goto {etqSalida};\n' \
                                     f'     printf(\"%c\",(char) {caracter});\n' \
                                     f'     {temp1} = {temp1} + 1;\n' \
                                     f'     goto {etqCiclo};\n'
 
                     CODIGO_SALIDA += f'{etqSalida}:\n'
+                elif paraminprint.tipo == TIPO_DATO.CHAR:
+                    temp1 = Generador3D.obtenerTemporal()
+                    caracter = Generador3D.obtenerTemporal()
+
+                    CODIGO_SALIDA += "/* IMPRIMIENDO UN VALOR CHAR*/\n"
+                    CODIGO_SALIDA += paraminprint.codigo
+                    CODIGO_SALIDA += f'{temp1} = {paraminprint.temporal};\n'
+                    CODIGO_SALIDA += f'{caracter} = Heap[(int){temp1}];\n'
+                    CODIGO_SALIDA += f'printf(\"%c\",(int) {caracter});\n'
+
+                elif paraminprint.tipo == TIPO_DATO.BOOLEAN:
+                    CODIGO_SALIDA += "/* IMPRIMIENDO UN VALOR BOOLEAN*/\n"
+                    CODIGO_SALIDA += paraminprint.codigo
+                    CODIGO_SALIDA += f'\nprintf(\"%d\", (int){paraminprint.temporal}); \n'
+
                 CODIGO_SALIDA_TOT += CODIGO_SALIDA 
             contador += 1           
         CODIGO_SALIDA_TOT += f'printf(\"%c\",(int)10);\n'
@@ -200,11 +217,82 @@ def procesar_imprimir(instr, ts, Generador3D):
 
 def resolverExpresion(exp, ts, Generador3D):
     if isinstance(exp, ExpresionDobleComilla): return resolverCadena(exp, Generador3D)
+    elif isinstance(exp,ExpresionCaracter): return resolverChar(exp,Generador3D)
+    elif isinstance(exp, ToString): return resolverToString(exp,ts, Generador3D)
     elif isinstance(exp, ExpresionNumero): return resolverNumero(exp, Generador3D)
     elif isinstance(exp, ExpresionLogicaTF): return resolverBooleano(exp, Generador3D)
+    elif isinstance(exp, ExpresionNot): return resolverNot(exp,ts, Generador3D)
     elif isinstance(exp, ExpresionNegativo): return resolverNumeroNegativo(exp, Generador3D)
     elif isinstance(exp, ExpresionBinaria): return resolverExpresionBinaria(exp, ts, Generador3D)
     elif isinstance(exp, ExpresionIdentificador): return resolverIdentificador(exp, ts, Generador3D)
+    elif isinstance(exp, ExpresionRelacionalBinaria): return resolverOpRelacion(exp, ts, Generador3D)
+
+def resolverNot(exp,ts, Generador3D):
+    CODIGO_SALIDA = ""
+    retorno = RetornoType()
+
+    valorExpresion = resolverExpresion(exp.exp, ts, Generador3D)
+
+    if valorExpresion.tipo == TIPO_DATO.BOOLEAN:
+        etiquetaVerdadera = Generador3D.obtenerEtiqueta()
+        etiquetaFalsa = Generador3D.obtenerEtiqueta()
+        etiquetaSalida = Generador3D.obtenerEtiqueta()
+        CODIGO_SALIDA += valorExpresion.codigo
+        CODIGO_SALIDA += f'if ({valorExpresion.temporal} == 1) goto {etiquetaVerdadera};\n'
+        CODIGO_SALIDA += f'goto {etiquetaFalsa};\n'
+        CODIGO_SALIDA += f'{etiquetaVerdadera}: {valorExpresion.temporal} = 0;\n'\
+                         f'goto {etiquetaSalida};\n'
+        CODIGO_SALIDA += f'{etiquetaFalsa}: {valorExpresion.temporal} = 1;\n'
+        CODIGO_SALIDA += f'{etiquetaSalida}:\n'
+
+        retorno.iniciarRetorno(CODIGO_SALIDA,"",valorExpresion.temporal,valorExpresion.tipo)
+    else:
+        print("Not necesita un booleano")
+
+    return retorno
+
+def resolverOpRelacion(exp, ts, Generador3D):
+    RETORNO = RetornoType()
+
+    CODIGO_SALIDA = ""
+
+    izq3D = resolverExpresion(exp.exp1, ts, Generador3D)
+    der3D = resolverExpresion(exp.exp2, ts, Generador3D)
+
+    CODIGO_SALIDA += izq3D.codigo
+    CODIGO_SALIDA += der3D.codigo
+
+    if (izq3D.tipo == TIPO_DATO.INT64 and der3D.ti == TIPO_DATO.INT64) or (izq3D.tipo == TIPO_DATO.FLOAT64 and der3D.ti == TIPO_DATO.FLOAT64):
+        etiquetaVerdadera = Generador3D.obtenerEtiqueta()
+        etiquetaFalsa = Generador3D.obtenerEtiqueta()
+        CODIGO_SALIDA += f'if ({izq3D.temporal} {obtenerSimbolo(exp)} {der3D.temporal}) goto {etiquetaVerdadera};\n'
+        CODIGO_SALIDA += f'goto {etiquetaFalsa}; \n'
+
+        RETORNO.iniciarRetorno(CODIGO_SALIDA,"","", TIPO_DATO.BOOLEAN)
+        RETORNO.etiquetaV = etiquetaVerdadera
+        RETORNO.etiquetaF = etiquetaFalsa
+
+
+    return RETORNO
+
+def obtenerSimbolo(exp):
+        match exp.operador:
+            case OPERACION_LOGICA.MAYOR_QUE:
+                return '>'
+            case OPERACION_LOGICA.MENOR_QUE:
+                return '<'
+            case OPERACION_LOGICA.MAYORIGUAL:
+                return '>='
+            case OPERACION_LOGICA.MENORIGUAL:
+                return '<='
+            case OPERACION_LOGICA.AND:
+                return '&&'
+            case OPERACION_LOGICA.OR:
+                return '||'
+            case OPERACION_LOGICA.DIFERENTE:
+                return '!='
+            case OPERACION_LOGICA.IGUAL:
+                return '=='
 
 def resolverBooleano(exp, Generador3D):
     CODIGO_SALIDA = ""
@@ -255,6 +343,32 @@ def resolverCadena(exp, Generador3D):
     CODIGO_SALIDA += f'H = H+1;\n'
 
     retorno.iniciarRetorno(CODIGO_SALIDA, "", temp2, exp.tipo)
+    return retorno
+
+def resolverChar(exp, Generador3D):
+    CODIGO_SALIDA = ""
+    retorno = RetornoType()
+
+    temp2 = Generador3D.obtenerTemporal()
+    CODIGO_SALIDA += f'{temp2} = H;\n'
+
+    caracter = exp.val[0]
+    valor = ord(caracter)
+    CODIGO_SALIDA += f'Heap[H] ={valor};\n'
+    CODIGO_SALIDA += f'H = H + 1;\n'
+
+    retorno.iniciarRetorno(CODIGO_SALIDA, "", temp2, exp.tipo)
+
+    return retorno
+
+def resolverToString(exp, ts, Generador3D):
+    retorno = RetornoType()
+
+    valorExpresion = resolverExpresion(exp.dato, ts, Generador3D)
+
+    if valorExpresion.tipo == TIPO_DATO.ISTRING or valorExpresion.tipo == TIPO_DATO.STRING:
+        retorno.iniciarRetorno(valorExpresion.codigo, "", valorExpresion.temporal, TIPO_DATO.STRING)
+
     return retorno
 
 def resolverIdentificador(exp, ts, Generador3D):
@@ -396,21 +510,39 @@ def operacionSuma(exp, ts, Generador3D):
 
             RETORNO.iniciarRetorno(CODIGO_SALIDA,"",TEMP1,TIPO_DATO.FLOAT64)
 
-        #elif tipoDominante == TIPO_DATO.CADENA:
-        #    TEMP2 = entorno.generador.obtenerTemporal()
-#
-        #    CODIGO_SALIDA += izq3D.codigo
-        #    CODIGO_SALIDA += der3D.codigo
-        #    CODIGO_SALIDA += f'{TEMP2} = HP;\n'
-        #    CODIGO_SALIDA += self.operacionConcatenar(entorno,izq3D)
-        #    CODIGO_SALIDA += self.operacionConcatenar(entorno,der3D)
-        #    CODIGO_SALIDA += f'Heap[HP] = 0;\n'
-        #    CODIGO_SALIDA += f'HP = HP + 1;\n'
-#
-        #    RETORNO.iniciarRetorno(CODIGO_SALIDA,"",TEMP2,TIPO_DATO.CADENA)
+        elif izq3D.tipo == TIPO_DATO.STRING and der3D.tipo == TIPO_DATO.ISTRING:
+            TEMP2 = Generador3D.obtenerTemporal()
+
+            CODIGO_SALIDA += izq3D.codigo
+            CODIGO_SALIDA += der3D.codigo
+            CODIGO_SALIDA += f'{TEMP2} = H;\n'
+            CODIGO_SALIDA += operacionConcatenar(izq3D, ts, Generador3D)
+            CODIGO_SALIDA += operacionConcatenar(der3D, ts, Generador3D)
+            CODIGO_SALIDA += f'Heap[H] = 0;\n'
+            CODIGO_SALIDA += f'H = H + 1;\n'
+
+            RETORNO.iniciarRetorno(CODIGO_SALIDA,"",TEMP2,TIPO_DATO.STRING)
+        else:
+            print("Error -> No se puede operar")
 
         return  RETORNO
 
+def operacionConcatenar(expresionRetorno, ts, Generador3D):
+    CODIGO_SALIDA = ""
+
+    etiquetaCiclo = Generador3D.obtenerEtiqueta()
+    etiquetaSalida = Generador3D.obtenerEtiqueta()
+    CARACTER = Generador3D.obtenerTemporal()
+
+    CODIGO_SALIDA += f'{etiquetaCiclo}: \n'
+    CODIGO_SALIDA += f'{CARACTER} = Heap[(int){expresionRetorno.temporal}];\n'
+    CODIGO_SALIDA += f'if ( {CARACTER} == 0) goto {etiquetaSalida};\n'
+    CODIGO_SALIDA += f'     Heap[H] = {CARACTER};\n'
+    CODIGO_SALIDA += f'     H = H + 1;\n'
+    CODIGO_SALIDA += f'     {expresionRetorno.temporal} = {expresionRetorno.temporal} + 1;\n'
+    CODIGO_SALIDA += f'     goto {etiquetaCiclo};\n'
+    CODIGO_SALIDA += f'{etiquetaSalida}:\n'
+    return CODIGO_SALIDA
 
 #def procesar_instrucciones(instrucciones, ts) :
 #    ## lista de instrucciones recolectadas

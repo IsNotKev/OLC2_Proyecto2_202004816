@@ -21,6 +21,72 @@ def procesar_instrucciones(instr, ts, Generador3D) :
     if isinstance(instr, Imprimir) : return procesar_imprimir(instr, ts, Generador3D)
     elif isinstance(instr, Definicion) : return procesar_definicion(instr, ts, Generador3D)
     elif isinstance(instr, Asignacion) : return procesar_asignacion(instr, ts, Generador3D)
+    elif isinstance(instr, If): return procesar_if(instr,ts,Generador3D)
+    elif isinstance(instr, IfElse): return procesar_if_else(instr,ts,Generador3D)
+
+def procesar_if(instr,ts,Generador3D):
+    CODIGO_SALIDA = ""
+
+    ETIQUETA_SALIDA = Generador3D.obtenerEtiqueta()
+
+    etiquetaVerdadera = Generador3D.obtenerEtiqueta()
+    etiquetaFalso = Generador3D.obtenerEtiqueta()
+
+    expresionCondicion = resolverExpresion(instr.exp, ts, Generador3D)
+    
+    if expresionCondicion.tipo == TIPO_DATO.BOOLEAN:
+        CODIGO_SALIDA += "/* INSTRUCCION IF*/\n"
+        CODIGO_SALIDA += expresionCondicion.codigo
+        CODIGO_SALIDA += f'if ({expresionCondicion.temporal} == 1) goto {etiquetaVerdadera};\n'
+        CODIGO_SALIDA += f'goto {ETIQUETA_SALIDA};\n'
+        CODIGO_SALIDA += f'{etiquetaVerdadera}: \n'
+        CODIGO_SALIDA += generarC3DInstrucciones(instr.instrucciones, ts, Generador3D)
+        CODIGO_SALIDA += f' goto {ETIQUETA_SALIDA};\n'
+        CODIGO_SALIDA += f'{etiquetaFalso}:\n'
+
+        CODIGO_SALIDA+= f'{ETIQUETA_SALIDA}: \n'
+    else:
+        print("Error -> if necesita booleano")
+
+    return CODIGO_SALIDA
+
+def procesar_if_else(instr,ts,Generador3D):
+    CODIGO_SALIDA = ""
+
+    ETIQUETA_SALIDA = Generador3D.obtenerEtiqueta()
+
+    etiquetaVerdadera = Generador3D.obtenerEtiqueta()
+    etiquetaFalso = Generador3D.obtenerEtiqueta()
+
+    expresionCondicion = resolverExpresion(instr.exp, ts, Generador3D)
+    
+    if expresionCondicion.tipo == TIPO_DATO.BOOLEAN:
+        CODIGO_SALIDA += "/* INSTRUCCION IF*/\n"
+        CODIGO_SALIDA += expresionCondicion.codigo
+        CODIGO_SALIDA += f'\nif ({expresionCondicion.temporal} == 1) goto {etiquetaVerdadera};\n'
+        CODIGO_SALIDA += f'goto {etiquetaFalso};\n'
+        CODIGO_SALIDA += f'{etiquetaVerdadera}: \n'
+        CODIGO_SALIDA += generarC3DInstrucciones(instr.instrIfVerdadero, ts, Generador3D)
+        CODIGO_SALIDA += f' goto {ETIQUETA_SALIDA};\n'
+        CODIGO_SALIDA += f'{etiquetaFalso}: \n'
+
+        if isinstance(instr.instrIfFalso, If) or isinstance(instr.instrIfFalso, IfElse):
+            CODIGO_SALIDA += procesar_instrucciones(instr.instrIfFalso, ts, Generador3D)
+        else:
+            CODIGO_SALIDA += generarC3DInstrucciones(instr.instrIfFalso, ts, Generador3D)
+
+        CODIGO_SALIDA+= f'{ETIQUETA_SALIDA}: \n'
+    else:
+        print("Error -> if necesita booleano")
+
+    return CODIGO_SALIDA
+
+def generarC3DInstrucciones(lista, ts, Generador3D):
+    CODIGO_SALIDA = ""
+    for instr in lista :
+        CODIGO_SALIDA += procesar_instrucciones(instr, ts, Generador3D)
+
+    return CODIGO_SALIDA
 
 def procesar_asignacion(instr, ts, Generador3D):
     valorExpresion = resolverExpresion(instr.exp,ts,Generador3D)
@@ -226,6 +292,10 @@ def resolverExpresion(exp, ts, Generador3D):
     elif isinstance(exp, ExpresionBinaria): return resolverExpresionBinaria(exp, ts, Generador3D)
     elif isinstance(exp, ExpresionIdentificador): return resolverIdentificador(exp, ts, Generador3D)
     elif isinstance(exp, ExpresionRelacionalBinaria): return resolverOpRelacion(exp, ts, Generador3D)
+    elif isinstance(exp, ExpresionLogicaBinaria): return resolverOpLogica(exp, ts, Generador3D)
+    elif isinstance(exp, Abs): return resolverValorAbsoluto(exp, ts, Generador3D)
+    elif isinstance(exp, Sqrt): return resolverSqrt(exp, ts, Generador3D)
+    elif isinstance(exp, Casteo): return resolverCasteo(exp, ts, Generador3D)
 
 def resolverNot(exp,ts, Generador3D):
     CODIGO_SALIDA = ""
@@ -237,6 +307,7 @@ def resolverNot(exp,ts, Generador3D):
         etiquetaVerdadera = Generador3D.obtenerEtiqueta()
         etiquetaFalsa = Generador3D.obtenerEtiqueta()
         etiquetaSalida = Generador3D.obtenerEtiqueta()
+        CODIGO_SALIDA += "/* NOT */\n"
         CODIGO_SALIDA += valorExpresion.codigo
         CODIGO_SALIDA += f'if ({valorExpresion.temporal} == 1) goto {etiquetaVerdadera};\n'
         CODIGO_SALIDA += f'goto {etiquetaFalsa};\n'
@@ -259,20 +330,114 @@ def resolverOpRelacion(exp, ts, Generador3D):
     izq3D = resolverExpresion(exp.exp1, ts, Generador3D)
     der3D = resolverExpresion(exp.exp2, ts, Generador3D)
 
-    CODIGO_SALIDA += izq3D.codigo
-    CODIGO_SALIDA += der3D.codigo
 
-    if (izq3D.tipo == TIPO_DATO.INT64 and der3D.ti == TIPO_DATO.INT64) or (izq3D.tipo == TIPO_DATO.FLOAT64 and der3D.ti == TIPO_DATO.FLOAT64):
+    CODIGO_SALIDA += "/* OPERACION RELACIONAL */\n"
+    CODIGO_SALIDA += izq3D.codigo + "\n"
+    CODIGO_SALIDA += der3D.codigo + "\n"
+
+    if (izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.INT64) or (izq3D.tipo == TIPO_DATO.FLOAT64 and der3D.tipo == TIPO_DATO.FLOAT64) or (izq3D.tipo == TIPO_DATO.USIZE and der3D.tipo == TIPO_DATO.USIZE) or (izq3D.tipo == TIPO_DATO.BOOLEAN and der3D.tipo == TIPO_DATO.BOOLEAN):
         etiquetaVerdadera = Generador3D.obtenerEtiqueta()
         etiquetaFalsa = Generador3D.obtenerEtiqueta()
+        etiquetaSalida = Generador3D.obtenerEtiqueta()
+
+        temp = Generador3D.obtenerTemporal()
+
         CODIGO_SALIDA += f'if ({izq3D.temporal} {obtenerSimbolo(exp)} {der3D.temporal}) goto {etiquetaVerdadera};\n'
         CODIGO_SALIDA += f'goto {etiquetaFalsa}; \n'
+    
+        CODIGO_SALIDA += f'{etiquetaVerdadera}: \n' \
+                         f' {temp} = 1;\n' \
+                         f' goto {etiquetaSalida};\n'
 
-        RETORNO.iniciarRetorno(CODIGO_SALIDA,"","", TIPO_DATO.BOOLEAN)
+        CODIGO_SALIDA += f'{etiquetaFalsa}: \n' \
+                         f' {temp} = 0;\n'
+
+        CODIGO_SALIDA += f'{etiquetaSalida}:\n'
+
+        RETORNO.iniciarRetorno(CODIGO_SALIDA,"",temp, TIPO_DATO.BOOLEAN)
         RETORNO.etiquetaV = etiquetaVerdadera
         RETORNO.etiquetaF = etiquetaFalsa
 
 
+    return RETORNO
+
+def resolverOpLogica(exp, ts, Generador3D):
+    if exp.operador == OPERACION_LOGICA.AND: return operacionAnd(exp, ts, Generador3D)
+    elif exp.operador == OPERACION_LOGICA.OR: return operacionOr(exp, ts, Generador3D)
+    else: print("Error -> Operación lógica no reconocida.")
+
+def operacionAnd(exp, ts, Generador3D):
+    CODIGO_SALIDA = ""
+    RETORNO = RetornoType()
+
+    izq3D = resolverExpresion(exp.exp1, ts, Generador3D)
+    der3D = resolverExpresion(exp.exp2, ts, Generador3D)
+
+    if (izq3D.tipo == TIPO_DATO.BOOLEAN and der3D.tipo == TIPO_DATO.BOOLEAN):
+        temporal = Generador3D.obtenerTemporal()
+        etiquetaVerdadero = Generador3D.obtenerEtiqueta()
+        etiquetaFalso = Generador3D.obtenerEtiqueta()
+        etiquetaSalida = Generador3D.obtenerEtiqueta()
+        etiquetaVaux = Generador3D.obtenerEtiqueta()
+
+        CODIGO_SALIDA += izq3D.codigo + "\n"
+        CODIGO_SALIDA += der3D.codigo + "\n"
+
+        CODIGO_SALIDA += "/* OPERACION AND */\n"
+
+        CODIGO_SALIDA += f'if ({izq3D.temporal} == 1) goto {etiquetaVaux};\n' \
+                        f'goto {etiquetaFalso};\n'
+        CODIGO_SALIDA += f'{etiquetaVaux}:\n'
+        CODIGO_SALIDA += f'if ({der3D.temporal} == 1) goto {etiquetaVerdadero};\n' \
+                        f'goto {etiquetaFalso};\n'
+
+        CODIGO_SALIDA += f'{etiquetaVerdadero}:\n' \
+                        f'{temporal} = 1;\n' \
+                        f'goto {etiquetaSalida};\n'
+
+        CODIGO_SALIDA += f'{etiquetaFalso}:\n' \
+                        f'{temporal} = 0;\n'
+
+        CODIGO_SALIDA += f'{etiquetaSalida}:\n'
+
+        RETORNO.iniciarRetorno(CODIGO_SALIDA,"",temporal,TIPO_DATO.BOOLEAN)
+    return RETORNO
+
+def operacionOr(exp, ts, Generador3D):
+    CODIGO_SALIDA = ""
+    RETORNO = RetornoType()
+
+    izq3D = resolverExpresion(exp.exp1, ts, Generador3D)
+    der3D = resolverExpresion(exp.exp2, ts, Generador3D)
+
+    if (izq3D.tipo == TIPO_DATO.BOOLEAN and der3D.tipo == TIPO_DATO.BOOLEAN):
+        temporal = Generador3D.obtenerTemporal()
+        etiquetaVerdadero = Generador3D.obtenerEtiqueta()
+        etiquetaFalso = Generador3D.obtenerEtiqueta()
+        etiquetaSalida = Generador3D.obtenerEtiqueta()
+        etiquetaVaux = Generador3D.obtenerEtiqueta()
+
+        CODIGO_SALIDA += izq3D.codigo + "\n"
+        CODIGO_SALIDA += der3D.codigo + "\n"
+
+        CODIGO_SALIDA += "/* OPERACION OR */\n"
+
+        CODIGO_SALIDA += f'if ({izq3D.temporal} == 1) goto {etiquetaVerdadero};\n' \
+                        f'goto {etiquetaVaux};\n'
+        CODIGO_SALIDA += f'{etiquetaVaux}:\n'
+        CODIGO_SALIDA += f'if ({der3D.temporal} == 1) goto {etiquetaVerdadero};\n' \
+                        f'goto {etiquetaFalso};\n'
+
+        CODIGO_SALIDA += f'{etiquetaVerdadero}:\n' \
+                        f'{temporal} = 1;\n' \
+                        f'goto {etiquetaSalida};\n'
+
+        CODIGO_SALIDA += f'{etiquetaFalso}:\n' \
+                        f'{temporal} = 0;\n'
+
+        CODIGO_SALIDA += f'{etiquetaSalida}:\n'
+
+        RETORNO.iniciarRetorno(CODIGO_SALIDA,"",temporal,TIPO_DATO.BOOLEAN)
     return RETORNO
 
 def obtenerSimbolo(exp):
@@ -402,33 +567,60 @@ def resolverExpresionBinaria(exp, ts, Generador3D):
     elif exp.operador == OPERACION_ARITMETICA.MENOS: return operacionResta(exp, ts, Generador3D)
     elif exp.operador == OPERACION_ARITMETICA.POR: return operacionMulti(exp, ts, Generador3D)
     elif exp.operador == OPERACION_ARITMETICA.DIVIDIDO: return operacionDivi(exp, ts, Generador3D)
+    elif exp.operador == OPERACION_ARITMETICA.MODULO: return operacionModulo(exp, ts, Generador3D)
+
+def operacionModulo(exp, ts, Generador3D):
+    CODIGO_SALIDA = ""
+    RETORNO = RetornoType()
+
+    izq3D = resolverExpresion(exp.exp1, ts, Generador3D)
+    der3D = resolverExpresion(exp.exp2, ts, Generador3D)
+
+    TEMP1 = Generador3D.obtenerTemporal()
+
+    if izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.INT64 :
+
+        CODIGO_SALIDA += izq3D.codigo +"\n"
+        CODIGO_SALIDA += der3D.codigo +"\n"
+        CODIGO_SALIDA += f'{TEMP1} = (int){izq3D.temporal} % (int){der3D.temporal};\n'
+
+        RETORNO.iniciarRetorno(CODIGO_SALIDA,"",TEMP1,TIPO_DATO.INT64)
+    elif izq3D.tipo == TIPO_DATO.FLOAT64 and der3D.tipo == TIPO_DATO.FLOAT64:
+
+        CODIGO_SALIDA += izq3D.codigo +"\n"
+        CODIGO_SALIDA += der3D.codigo +"\n"
+        CODIGO_SALIDA += f'{TEMP1} = (int){izq3D.temporal} % (int){der3D.temporal};\n'
+
+        RETORNO.iniciarRetorno(CODIGO_SALIDA,"",TEMP1,TIPO_DATO.FLOAT64)
+
+    return  RETORNO
 
 def operacionDivi(exp, ts, Generador3D):
 
-        CODIGO_SALIDA = ""
-        RETORNO = RetornoType()
+    CODIGO_SALIDA = ""
+    RETORNO = RetornoType()
 
-        izq3D = resolverExpresion(exp.exp1, ts, Generador3D)
-        der3D = resolverExpresion(exp.exp2, ts, Generador3D)
+    izq3D = resolverExpresion(exp.exp1, ts, Generador3D)
+    der3D = resolverExpresion(exp.exp2, ts, Generador3D)
 
-        TEMP1 = Generador3D.obtenerTemporal()
+    TEMP1 = Generador3D.obtenerTemporal()
 
-        if izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.INT64 :
+    if izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.INT64 :
 
-            CODIGO_SALIDA += izq3D.codigo +"\n"
-            CODIGO_SALIDA += der3D.codigo +"\n"
-            CODIGO_SALIDA += f'{TEMP1} = {izq3D.temporal} / {der3D.temporal};\n'
+        CODIGO_SALIDA += izq3D.codigo +"\n"
+        CODIGO_SALIDA += der3D.codigo +"\n"
+        CODIGO_SALIDA += f'{TEMP1} = {izq3D.temporal} / {der3D.temporal};\n'
 
-            RETORNO.iniciarRetorno(CODIGO_SALIDA,"",TEMP1,TIPO_DATO.INT64)
-        elif izq3D.tipo == TIPO_DATO.FLOAT64 and der3D.tipo == TIPO_DATO.FLOAT64:
+        RETORNO.iniciarRetorno(CODIGO_SALIDA,"",TEMP1,TIPO_DATO.INT64)
+    elif izq3D.tipo == TIPO_DATO.FLOAT64 and der3D.tipo == TIPO_DATO.FLOAT64:
 
-            CODIGO_SALIDA += izq3D.codigo +"\n"
-            CODIGO_SALIDA += der3D.codigo +"\n"
-            CODIGO_SALIDA += f'{TEMP1} = {izq3D.temporal} / {der3D.temporal};\n'
+        CODIGO_SALIDA += izq3D.codigo +"\n"
+        CODIGO_SALIDA += der3D.codigo +"\n"
+        CODIGO_SALIDA += f'{TEMP1} = {izq3D.temporal} / {der3D.temporal};\n'
 
-            RETORNO.iniciarRetorno(CODIGO_SALIDA,"",TEMP1,TIPO_DATO.FLOAT64)
+        RETORNO.iniciarRetorno(CODIGO_SALIDA,"",TEMP1,TIPO_DATO.FLOAT64)
 
-        return  RETORNO
+    return  RETORNO
 
 def operacionMulti(exp, ts, Generador3D):
 
@@ -527,6 +719,76 @@ def operacionSuma(exp, ts, Generador3D):
 
         return  RETORNO
 
+def resolverValorAbsoluto(exp, ts, Generador3D):
+    CODIGO_SALIDA = ""
+    RETORNO = RetornoType()
+
+    valorExpresion = resolverExpresion(exp.dato, ts, Generador3D)
+
+    if valorExpresion.tipo == TIPO_DATO.INT64 or valorExpresion.tipo == TIPO_DATO.FLOAT64:
+        etiquetaVerdadera = Generador3D.obtenerEtiqueta()
+        etiquetaFalsa = Generador3D.obtenerEtiqueta()
+        etiquetaSalida = Generador3D.obtenerEtiqueta()
+        temporal = Generador3D.obtenerTemporal()
+
+        CODIGO_SALIDA += valorExpresion.codigo + "\n"
+        CODIGO_SALIDA += "/* VALOR ABSOLUTO */\n"
+        CODIGO_SALIDA += f'if ({valorExpresion.temporal}<0) goto {etiquetaVerdadera};\n' \
+                         f'goto {etiquetaFalsa};\n'
+        
+        CODIGO_SALIDA += f'{etiquetaVerdadera}:\n' \
+                         f'{temporal} = {valorExpresion.temporal} * -1;\n' \
+                         f'goto {etiquetaSalida};\n'
+        
+        CODIGO_SALIDA += f'{etiquetaFalsa}:\n' \
+                         f'{temporal} = {valorExpresion.temporal};\n'
+        
+        CODIGO_SALIDA += f'{etiquetaSalida}:'
+
+        RETORNO.iniciarRetorno(CODIGO_SALIDA,"",temporal,valorExpresion.tipo)
+
+    return RETORNO
+
+def resolverSqrt(exp, ts, Generador3D):
+    CODIGO = ""
+    RETORNO = RetornoType()
+
+    valorExpresion = resolverExpresion(exp.dato, ts, Generador3D)
+
+    if valorExpresion.tipo == TIPO_DATO.INT64 or valorExpresion.tipo == TIPO_DATO.FLOAT64 or valorExpresion.tipo == TIPO_DATO.USIZE:
+        etiquetaInicio = Generador3D.obtenerEtiqueta()
+        etiquetaCod = Generador3D.obtenerEtiqueta()
+        etiquetaFin = Generador3D.obtenerEtiqueta()
+
+        sqrt = Generador3D.obtenerTemporal()
+        tmp = Generador3D.obtenerTemporal()
+
+        tmp1 = Generador3D.obtenerTemporal()
+        tmp2 = Generador3D.obtenerTemporal()
+        tmp3 = Generador3D.obtenerTemporal()
+
+        CODIGO += valorExpresion.codigo + "\n"
+        CODIGO += "/* RAIZ CUADRADA */\n"
+        CODIGO += f'{sqrt} = {valorExpresion.temporal} / 2;\n'
+        CODIGO += f'{tmp} = 0;\n'
+
+        CODIGO += f'{etiquetaInicio}: \n' \
+                  f'    if ({sqrt} != {tmp}) goto {etiquetaCod};\n' \
+                  f'    goto {etiquetaFin};\n' \
+                  f'{etiquetaCod}:\n' \
+                  f'    {tmp} = {sqrt};\n' \
+                  f'    {tmp1} = {valorExpresion.temporal} / {tmp};\n' \
+                  f'    {tmp2} = {tmp1} + {tmp};\n' \
+                  f'    {tmp3} = {tmp2} / 2;\n' \
+                  f'    {sqrt} = {tmp3};\n'\
+                  f'    goto {etiquetaInicio};\n'
+        
+        CODIGO += f'{etiquetaFin}:\n'
+
+        RETORNO.iniciarRetorno(CODIGO,"", sqrt, valorExpresion.tipo)
+
+    return RETORNO
+
 def operacionConcatenar(expresionRetorno, ts, Generador3D):
     CODIGO_SALIDA = ""
 
@@ -543,6 +805,24 @@ def operacionConcatenar(expresionRetorno, ts, Generador3D):
     CODIGO_SALIDA += f'     goto {etiquetaCiclo};\n'
     CODIGO_SALIDA += f'{etiquetaSalida}:\n'
     return CODIGO_SALIDA
+
+def resolverCasteo(exp, ts, Generador3D):
+    valorExpresion = resolverExpresion(exp.dato, ts, Generador3D)
+
+    if valorExpresion.tipo == exp.casteo:
+        return valorExpresion
+    elif valorExpresion.tipo == TIPO_DATO.INT64 and exp.casteo == TIPO_DATO.FLOAT64:
+        valorExpresion.tipo == TIPO_DATO.FLOAT64
+        return valorExpresion
+    elif valorExpresion.tipo == TIPO_DATO.FLOAT64 and exp.casteo == TIPO_DATO.INT64:
+        valorExpresion.tipo == TIPO_DATO.INT64
+        return valorExpresion
+    elif valorExpresion.tipo == TIPO_DATO.CHAR and exp.casteo == TIPO_DATO.INT64:
+        valorExpresion.tipo == TIPO_DATO.INT64
+        return valorExpresion
+    
+    return RetornoType()
+
 
 #def procesar_instrucciones(instrucciones, ts) :
 #    ## lista de instrucciones recolectadas

@@ -1,3 +1,5 @@
+from ast import For
+from codecs import CodecInfo
 from doctest import ELLIPSIS_MARKER
 from xml.etree.ElementTree import tostring
 from ts import TIPO_VAR, Simbolo, TIPO_DATO, RetornoType
@@ -17,14 +19,84 @@ def guardarFunciones(instrucciones, ts):
 def guardar_funcion(instr,ts):
     ts.agregarFuncion(instr)
 
-def procesar_instrucciones(instr, ts, Generador3D) :
+def procesar_instrucciones(instr, ts, Generador3D, etiquetaInicio = "", etiquetaSalida = "") :
     if isinstance(instr, Imprimir) : return procesar_imprimir(instr, ts, Generador3D)
     elif isinstance(instr, Definicion) : return procesar_definicion(instr, ts, Generador3D)
     elif isinstance(instr, Asignacion) : return procesar_asignacion(instr, ts, Generador3D)
-    elif isinstance(instr, If): return procesar_if(instr,ts,Generador3D)
-    elif isinstance(instr, IfElse): return procesar_if_else(instr,ts,Generador3D)
+    elif isinstance(instr, If): return procesar_if(instr,ts,Generador3D, etiquetaInicio, etiquetaSalida)
+    elif isinstance(instr, IfElse): return procesar_if_else(instr,ts,Generador3D, etiquetaInicio, etiquetaSalida)
+    elif isinstance(instr, ForIn): return procesar_for(instr,ts,Generador3D)
+    elif isinstance(instr, While): return procesar_while(instr,ts,Generador3D)
+    elif isinstance(instr, Loop): return procesar_loop(instr,ts,Generador3D)
+    elif isinstance(instr, Break): return procesar_break(etiquetaSalida)
+    elif isinstance(instr, Continue): return procesar_continue(etiquetaInicio)
 
-def procesar_if(instr,ts,Generador3D):
+def procesar_continue(etiquetaInicio):
+    CODIGO = ""
+    if etiquetaInicio != "":
+        CODIGO = "goto " + etiquetaInicio + ";\n"
+    return CODIGO
+
+def procesar_break(etiquetaSalida):
+    CODIGO = ""
+    if etiquetaSalida != "":
+        CODIGO = "goto " + etiquetaSalida + ";\n"
+    
+    return CODIGO
+
+def procesar_for(instr,ts,Generador3D):
+    CODIGO_SALIDA = ""
+
+    return CODIGO_SALIDA
+
+def procesar_while(instr,ts,Generador3D):
+    CODIGO_SALIDA = ""
+
+    valorExpresion = resolverExpresion(instr.exp,ts, Generador3D)
+
+    if valorExpresion.tipo == TIPO_DATO.BOOLEAN:
+        etiquetaInicio = Generador3D.obtenerEtiqueta()
+        etiquetaCod = Generador3D.obtenerEtiqueta()
+        etiquetaFin = Generador3D.obtenerEtiqueta()
+
+        CODIGO_SALIDA += "/* CICLO WHILE */\n"
+        CODIGO_SALIDA += f'{etiquetaInicio}:\n'
+        CODIGO_SALIDA += valorExpresion.codigo + "\n"
+
+        CODIGO_SALIDA += f'if ({valorExpresion.temporal} == 1) goto {etiquetaCod};\n' \
+                         f'goto {etiquetaFin};\n'
+        
+        CODIGO_SALIDA += f'{etiquetaCod}:\n'
+
+        CODIGO_SALIDA += generarC3DInstrucciones(instr.instrucciones, ts, Generador3D, etiquetaInicio, etiquetaFin)
+
+        CODIGO_SALIDA += f'\ngoto {etiquetaInicio};\n'
+
+        CODIGO_SALIDA += f'{etiquetaFin}:\n'
+
+    else:
+        print("Error -> While necesita un booleano")
+
+    return CODIGO_SALIDA
+
+def procesar_loop(instr,ts,Generador3D):
+    CODIGO_SALIDA = ""
+
+    etiquetaInicio = Generador3D.obtenerEtiqueta()
+    etiquetaFin = Generador3D.obtenerEtiqueta()
+
+    CODIGO_SALIDA += "/* CICLO LOOP */\n"
+    CODIGO_SALIDA += f'{etiquetaInicio}:\n'
+
+    CODIGO_SALIDA += generarC3DInstrucciones(instr.instrucciones, ts, Generador3D, etiquetaInicio, etiquetaFin)
+
+    CODIGO_SALIDA += f'\ngoto {etiquetaInicio};\n'
+
+    CODIGO_SALIDA += f'{etiquetaFin}:\n'
+
+    return CODIGO_SALIDA
+
+def procesar_if(instr,ts,Generador3D, etiquetaInicio, etiquetaSalida):
     CODIGO_SALIDA = ""
 
     ETIQUETA_SALIDA = Generador3D.obtenerEtiqueta()
@@ -40,7 +112,7 @@ def procesar_if(instr,ts,Generador3D):
         CODIGO_SALIDA += f'if ({expresionCondicion.temporal} == 1) goto {etiquetaVerdadera};\n'
         CODIGO_SALIDA += f'goto {ETIQUETA_SALIDA};\n'
         CODIGO_SALIDA += f'{etiquetaVerdadera}: \n'
-        CODIGO_SALIDA += generarC3DInstrucciones(instr.instrucciones, ts, Generador3D)
+        CODIGO_SALIDA += generarC3DInstrucciones(instr.instrucciones, ts, Generador3D, etiquetaInicio, etiquetaSalida)
         CODIGO_SALIDA += f' goto {ETIQUETA_SALIDA};\n'
         CODIGO_SALIDA += f'{etiquetaFalso}:\n'
 
@@ -50,7 +122,7 @@ def procesar_if(instr,ts,Generador3D):
 
     return CODIGO_SALIDA
 
-def procesar_if_else(instr,ts,Generador3D):
+def procesar_if_else(instr,ts,Generador3D, etiquetaInicio, etiquetaSalida):
     CODIGO_SALIDA = ""
 
     ETIQUETA_SALIDA = Generador3D.obtenerEtiqueta()
@@ -66,14 +138,14 @@ def procesar_if_else(instr,ts,Generador3D):
         CODIGO_SALIDA += f'\nif ({expresionCondicion.temporal} == 1) goto {etiquetaVerdadera};\n'
         CODIGO_SALIDA += f'goto {etiquetaFalso};\n'
         CODIGO_SALIDA += f'{etiquetaVerdadera}: \n'
-        CODIGO_SALIDA += generarC3DInstrucciones(instr.instrIfVerdadero, ts, Generador3D)
+        CODIGO_SALIDA += generarC3DInstrucciones(instr.instrIfVerdadero, ts, Generador3D, etiquetaInicio, etiquetaSalida)
         CODIGO_SALIDA += f' goto {ETIQUETA_SALIDA};\n'
         CODIGO_SALIDA += f'{etiquetaFalso}: \n'
 
         if isinstance(instr.instrIfFalso, If) or isinstance(instr.instrIfFalso, IfElse):
-            CODIGO_SALIDA += procesar_instrucciones(instr.instrIfFalso, ts, Generador3D)
+            CODIGO_SALIDA += procesar_instrucciones(instr.instrIfFalso, ts, Generador3D, etiquetaInicio, etiquetaSalida)
         else:
-            CODIGO_SALIDA += generarC3DInstrucciones(instr.instrIfFalso, ts, Generador3D)
+            CODIGO_SALIDA += generarC3DInstrucciones(instr.instrIfFalso, ts, Generador3D, etiquetaInicio, etiquetaSalida)
 
         CODIGO_SALIDA+= f'{ETIQUETA_SALIDA}: \n'
     else:
@@ -81,10 +153,10 @@ def procesar_if_else(instr,ts,Generador3D):
 
     return CODIGO_SALIDA
 
-def generarC3DInstrucciones(lista, ts, Generador3D):
+def generarC3DInstrucciones(lista, ts, Generador3D, etiquetaInicio, etiquetaSalida):
     CODIGO_SALIDA = ""
     for instr in lista :
-        CODIGO_SALIDA += procesar_instrucciones(instr, ts, Generador3D)
+        CODIGO_SALIDA += procesar_instrucciones(instr, ts, Generador3D, etiquetaInicio, etiquetaSalida)
 
     return CODIGO_SALIDA
 
@@ -296,6 +368,48 @@ def resolverExpresion(exp, ts, Generador3D):
     elif isinstance(exp, Abs): return resolverValorAbsoluto(exp, ts, Generador3D)
     elif isinstance(exp, Sqrt): return resolverSqrt(exp, ts, Generador3D)
     elif isinstance(exp, Casteo): return resolverCasteo(exp, ts, Generador3D)
+    elif isinstance(exp, ExpresionPotencia): return resolverPotencia(exp, ts, Generador3D)
+
+def resolverPotencia(exp, ts, Generador3D):
+    RETORNO = RetornoType()
+    CODIGO = ""
+    exp1 = resolverExpresion(exp.exp1, ts, Generador3D)
+    exp2 = resolverExpresion(exp.exp2, ts, Generador3D)
+
+    if((exp1.tipo == TIPO_DATO.INT64 and exp2.tipo == TIPO_DATO.INT64 ) or (exp1.tipo == TIPO_DATO.FLOAT64 and exp2.tipo == TIPO_DATO.FLOAT64 )):
+        if(exp1.tipo == exp.tipo):
+            res = Generador3D.obtenerTemporal()
+            cont = Generador3D.obtenerTemporal()
+
+            etiquetaInicio = Generador3D.obtenerEtiqueta()
+            etiquetaCod = Generador3D.obtenerEtiqueta()
+            etiquetaSalida = Generador3D.obtenerEtiqueta()
+
+            CODIGO += exp1.codigo + "\n"
+            CODIGO += exp2.codigo + "\n"
+
+            CODIGO += "/* POTENCIA */\n"
+            CODIGO += f'{res} = 1;\n' \
+                      f'{cont} = {exp2.temporal};\n\n'
+            
+            CODIGO += f'{etiquetaInicio}:\n' \
+                      f'if ({cont} > 0) goto {etiquetaCod};\n' \
+                      f'goto {etiquetaSalida};\n'
+            
+            CODIGO += f'{etiquetaCod}:\n' \
+                      f'    {res} = {res} * {exp1.temporal};\n' \
+                      f'    {cont} = {cont} - 1;\n' \
+                      f'    goto {etiquetaInicio};\n'
+            
+            CODIGO += f'{etiquetaSalida}:'
+
+            RETORNO.iniciarRetorno(CODIGO,"",res,exp.tipo)
+        else:
+            print("Error -> No es del tipo correcto")
+    else:
+        print("Error -> No se puede operar")
+
+    return RETORNO
 
 def resolverNot(exp,ts, Generador3D):
     CODIGO_SALIDA = ""

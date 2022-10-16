@@ -63,11 +63,12 @@ class While(Instruccion):
         self.instrucciones = instrucciones
 
 class Funcion(Instruccion):
-    def __init__(self, id, parametros,tipo_dato, instrucciones):
+    def __init__(self, id, parametros,tipo_dato, instrucciones, generada = False):
         self.id = id
         self.parametros = parametros
         self.instrucciones = instrucciones
         self.tipo_dato = tipo_dato
+        self.generada = generada
 
 class Parametro(Instruccion):
     def __init__(self, id, tipo_dato,tipo_var):

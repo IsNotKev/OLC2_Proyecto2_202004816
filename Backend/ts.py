@@ -49,11 +49,12 @@ class Simbolo() :
         self.direccionRelativa = direccionRelativa
 
 class Funcion():
-    def __init__(self, id, parametros, instrucciones, tipo_dato):
+    def __init__(self, id, parametros, instrucciones, tipo_dato, generada = False):
         self.id = id
         self.parametros = parametros
         self.instrucciones = instrucciones
         self.tipo_dato = tipo_dato
+        self.generada = generada
 
 class Struct():
     def __init__(self,id , parametros):
@@ -123,7 +124,7 @@ class TablaDeSimbolos() :
                 elif simbolo.tipo_dato == TIPO_DATO.USIZE and simbolo.valor.tipo == TIPO_DATO.INT64 and simbolo.valor.val >= 0:
                     self.simbolos[simbolo.id] = simbolo
                 else:                 
-                    print('Error al asignar',simbolo.id, simbolo.valor.tipo)
+                    print('Error al asignar',simbolo.id, simbolo.valor.tipo, simbolo.tipo_dato)
                     return None
             else:
                 simbolo.tipo_dato = simbolo.valor.tipo
@@ -140,6 +141,7 @@ class TablaDeSimbolos() :
     def obtenerFuncion(self, id):
         if not id in self.funciones :
             print('Error: funcion ', id, ' no definida.')
+            return None
         else:
             return self.funciones[id]
 
@@ -148,6 +150,9 @@ class TablaDeSimbolos() :
             return False
         else:
             return True
+
+    def sustituirFuncion (self,funcion):
+        self.funciones[funcion.id] = funcion
 
     def obtenerSimbolo(self, id) :
         if not id in self.simbolos :

@@ -9,8 +9,7 @@ class Generador3D:
 
 
     def obtenerTemporal(self):
-
-        temp = "t"+self.temporales.__str__()
+        temp = "t" + self.temporales.__str__()
         self.temporales  += 1
         return temp
 

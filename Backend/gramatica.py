@@ -487,15 +487,15 @@ def p_tiposStruct(t):
 
 def p_tipoVec(t):
     'tipos              :   VVEC MENQUE tipos MAYQUE'  
-    t[0] = TIPO_DATO.VOID
+    t[0] = TIPO_DATO.VECTOR
 
 def p_tipo_array(t):
     'tipos         :   CORCHIZQ tipos PTCOMA expresion CORCHDER'
-    t[0] = TIPO_DATO.VOID
+    t[0] = TIPO_DATO.ARRAY
 
 def p_tipo_arrayun(t):
     'tipos         :   CORCHIZQ tipos CORCHDER'
-    t[0] = TIPO_DATO.VOID
+    t[0] = TIPO_DATO.ARRAY
 
 def p_instruccion_imprimir(t) :
     '''imprimir_instr     : PRINTLN ADMIR PARIZQ CADENA PARDER'''

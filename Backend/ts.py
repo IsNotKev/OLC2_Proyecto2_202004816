@@ -10,6 +10,8 @@ class TIPO_DATO(Enum) :
     CHAR = 6
     USIZE = 7
     VOID = 8
+    VECTOR = 9
+    ARRAY = 10
 
 class TIPO_SIMBOLO(Enum):
     VAR = 1
@@ -31,11 +33,13 @@ class RetornoType:
         self.etiquetaV = ""
         self.etiquetaF = ""
 
-    def iniciarRetorno(self, codigo, etiqueta, temporal, tipo):
+    def iniciarRetorno(self, codigo, etiqueta, temporal, tipo, valor = None, tipo2 = None):
         self.codigo = codigo
         self.temporal = temporal
         self.etiqueta = etiqueta
         self.tipo = tipo
+        self.valor = valor
+        self.tipo2 = tipo2
 
 class Simbolo() :
     'Esta clase representa un simbolo dentro de nuestra tabla de simbolos'

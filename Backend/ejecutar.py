@@ -1,3 +1,4 @@
+from lib2to3.refactor import RefactoringTool
 from ts import Simbolo, TIPO_DATO, RetornoType
 from expresiones import *
 from instrucciones import *
@@ -91,14 +92,12 @@ def ejecutarParametros(funcion, ENTORNO_FUNCION, parametros, entornoQueLlamo, pu
         return CODIGO_SALIDA
 
 def verificar_funcion_generada(ENTORNO_FUNCION, funcion, Generador3D):
-    if funcion.generada:
-        return
-
-    resultadoFuncion = procesar_funcion(funcion, ENTORNO_FUNCION, Generador3D)
-    Generador3D.agregarFuncion(resultadoFuncion)
-
-    funcion.generada = True
-    ENTORNO_FUNCION.sustituirFuncion(funcion)
+    if not funcion.generada:
+        funcion.generada = True
+        ENTORNO_FUNCION.sustituirFuncion(funcion) 
+        
+        resultadoFuncion = procesar_funcion(funcion, ENTORNO_FUNCION, Generador3D)
+        Generador3D.agregarFuncion(resultadoFuncion)
 
 def procesar_funcion(funcion, ts, Generador3D):
     CODIGO_SALIDA = ""
@@ -109,7 +108,7 @@ def procesar_funcion(funcion, ts, Generador3D):
     for instruccion in funcion.instrucciones:
         CODIGO_SALIDA += procesar_instrucciones(instruccion, ts, Generador3D)
 
-    CODIGO_SALIDA.replace("SECCION_N_RETORNO", ETIQUETA_RETURN)
+    CODIGO_SALIDA = CODIGO_SALIDA.replace("SECCION_N_RETORNO", ETIQUETA_RETURN)
 
     CODIGO_SALIDA += f'{ETIQUETA_RETURN}: \n'
     CODIGO_SALIDA += f'return; \n'
@@ -407,6 +406,8 @@ def procesar_imprimir(instr, ts, Generador3D):
                     CODIGO_SALIDA += "/* IMPRIMIENDO UN VALOR BOOLEAN*/\n"
                     CODIGO_SALIDA += paraminprint.codigo
                     CODIGO_SALIDA += f'\nprintf(\"%d\", (int){paraminprint.temporal}); \n'
+                else:
+                    print(paraminprint.tipo)
 
                 CODIGO_SALIDA_TOT += CODIGO_SALIDA 
             contador += 1           
@@ -463,6 +464,135 @@ def resolverExpresion(exp, ts, Generador3D):
     elif isinstance(exp, Casteo): return resolverCasteo(exp, ts, Generador3D)
     elif isinstance(exp, ExpresionPotencia): return resolverPotencia(exp, ts, Generador3D)
     elif isinstance(exp, Llamado): return procesar_llamado(exp,ts,Generador3D)
+    elif isinstance(exp, ExpresionArray): return resolverArray(exp, ts, Generador3D)
+    elif isinstance(exp, ExpresionIdVectorial): return AccesoArreglo(exp, ts, Generador3D)
+
+def AccesoArreglo(exp, ts, Generador3D):
+    retorno = RetornoType()
+
+    instanciaArreglo = ts.obtenerSimbolo(exp.id)
+
+    if instanciaArreglo != None:
+        if instanciaArreglo.tipo_dato == TIPO_DATO.ARRAY or instanciaArreglo.tipo_dato == TIPO_DATO.VECTOR:
+            temp1 = Generador3D.obtenerTemporal()
+            temp2 = Generador3D.obtenerTemporal()
+            etiqueta = Generador3D.obtenerEtiqueta()
+
+            CODIGO_SALIDA = "/* ACCESO A UN ARREGLO*/\n"
+            CODIGO_SALIDA += f"{temp1} = S + {instanciaArreglo.direccionRelativa};\n"
+            CODIGO_SALIDA += f"{temp2} = Stack[(int) {temp1}]; \n"
+
+            #if len(self.listaExpresiones) != len(instanciaArreglo.dimensiones):
+            #    return  RetornoType()
+
+            listaExpresionesCompiladas = compilarDimensiones(exp, ts, Generador3D)        
+
+            for expr in listaExpresionesCompiladas:
+                CODIGO_SALIDA += expr.codigo
+
+            resultado = accederAPosicion(listaExpresionesCompiladas, temp2, ts, Generador3D)
+
+            CODIGO_SALIDA += resultado.codigo
+            CODIGO_SALIDA = CODIGO_SALIDA.replace("salida_arreglo_x",etiqueta)
+            CODIGO_SALIDA += f"{etiqueta}:\n"
+
+            retorno.iniciarRetorno(CODIGO_SALIDA,"",resultado.temporal, instanciaArreglo.valor.tipo2)
+
+    return retorno
+
+def accederAPosicion(listaExpresiones, temporal, ts, Generador3D):
+    CODIGO_SALIDA = "/*ACCEDIENDO A X POSICION*/\n"
+
+    
+    expresionX: RetornoType = listaExpresiones.pop(0)
+
+    temp1 = Generador3D.obtenerTemporal()
+    temp2 = Generador3D.obtenerTemporal()
+    temp3 = Generador3D.obtenerTemporal()
+    temp4 = Generador3D.obtenerTemporal()
+
+
+    CODIGO_SALIDA += f"{temp1} = Heap[(int) {temporal}]; /*OBTENIENDO TAMAÑO DE ARREGLO*/\n "
+    CODIGO_SALIDA += f" if ({expresionX.temporal} > {temp1}) goto salida_arreglo_x;\n"
+    CODIGO_SALIDA += f"{temp2} = {temporal} + 1;\n"
+    CODIGO_SALIDA += f"{temp3} = {temp2} + {expresionX.temporal};\n"
+    CODIGO_SALIDA += f"{temp4} = Heap[(int) {temp3}];\n"
+
+    retorno = RetornoType()
+    if(len(listaExpresiones)> 0):
+        resultado =  accederAPosicion(listaExpresiones,temp4,ts, Generador3D)
+        CODIGO_SALIDA += resultado.codigo
+        retorno.iniciarRetorno(CODIGO_SALIDA,"",resultado.temporal,None)
+    else:
+        retorno.iniciarRetorno(CODIGO_SALIDA,"",temp4,None)
+
+    return retorno
+
+def compilarDimensiones(exp, ts, Generador3D):
+    dimensiones = []
+    for expresion in exp.ubicacion:
+        retornoExpr = resolverExpresion(expresion, ts, Generador3D)
+        if retornoExpr.tipo == TIPO_DATO.INT64 or retornoExpr.tipo == TIPO_DATO.USIZE:
+            dimensiones.append(retornoExpr)
+        else:
+            break
+    return  dimensiones
+
+def resolverArray(exp, ts, Generador3D):
+    retorno = RetornoType()
+    CODIGO_FINAL = ""
+
+    listaDimensiones = []
+    temp1 = Generador3D.obtenerTemporal()
+    temp2 = Generador3D.obtenerTemporal()
+
+    CODIGO_FINAL += f"{temp1} = H;/*Posicion de referencia en HEAP*/\n"
+
+    exee = resolver_expresionesCompiladas(exp, ts, Generador3D)
+    expresionesCompiladas = exee[0]
+    tipo = exee[1]
+
+    listaDimensiones.append(len(expresionesCompiladas)) # ALMACENAR EL TAMAÑO DE UNA DIMENSION
+    CODIGO_FINAL += f"H = H + {len(expresionesCompiladas) + 1};  \n"
+    CODIGO_FINAL += f"Heap[(int) {temp1} ] = {len(expresionesCompiladas)}; /*Valor que almacena el tamaño*/\n"
+    index = 1
+
+    for expr in expresionesCompiladas:
+        if (expr.valor != None):
+            CODIGO_FINAL += "/* referenciando a un sub-arreglo*/\n"
+            CODIGO_FINAL += expr.codigo +"\n"
+            CODIGO_FINAL += f"{temp2} = {temp1} + {index};\n"
+            CODIGO_FINAL += f"Heap[(int) {temp2}] = {expr.temporal};\n"
+            if(index == 1 ):
+                listaDimensiones.extend(expr.valor)  # ALMACENAR EL TAMAÑO DE UNA DIMENSION
+            tipo = expr.tipo2 
+        else:
+            CODIGO_FINAL += "/* almacenando un valor String, bool, int o float */\n"
+            CODIGO_FINAL += expr.codigo + "\n"
+            CODIGO_FINAL += f"{temp2} = {temp1} + {index};\n"
+            CODIGO_FINAL += f"Heap[(int) {temp2}] = {expr.temporal};\n"
+        index += 1
+    
+    retorno.iniciarRetorno(CODIGO_FINAL, "", temp1, TIPO_DATO.ARRAY, listaDimensiones, tipo)
+    return retorno
+
+def resolver_expresionesCompiladas(exp, ts, Generador3D):
+    expresiones = []
+
+    contador = 0
+    tipo = TIPO_DATO.VOID
+
+    for data in exp.val:
+        resultadoExpr = resolverExpresion(data,ts,Generador3D)
+        #Verificando tipo
+        if contador == 0:
+            tipo = resultadoExpr.tipo
+        else:
+            if (tipo != resultadoExpr.tipo):
+                return []
+        contador += 1
+        expresiones.append(resultadoExpr)
+    return [expresiones, tipo]
 
 def resolverPotencia(exp, ts, Generador3D):
     RETORNO = RetornoType()
@@ -858,29 +988,21 @@ def operacionMulti(exp, ts, Generador3D):
         return  RETORNO
 
 def operacionResta(exp, ts, Generador3D):
-
-    CODIGO_SALIDA = ""
     RETORNO = RetornoType()
+    CODIGO_SALIDA = ""
 
     izq3D = resolverExpresion(exp.exp1, ts, Generador3D)
     der3D = resolverExpresion(exp.exp2, ts, Generador3D)
 
     TEMP1 = Generador3D.obtenerTemporal()
 
-    if izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.INT64 :
+    if (izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.INT64 ) or (izq3D.tipo == TIPO_DATO.FLOAT64 and der3D.tipo == TIPO_DATO.FLOAT64):
 
         CODIGO_SALIDA += izq3D.codigo +"\n"
         CODIGO_SALIDA += der3D.codigo +"\n"
         CODIGO_SALIDA += f'{TEMP1} = {izq3D.temporal} - {der3D.temporal};\n'
 
-        RETORNO.iniciarRetorno(CODIGO_SALIDA,"",TEMP1,TIPO_DATO.INT64)
-    elif izq3D.tipo == TIPO_DATO.FLOAT64 and der3D.tipo == TIPO_DATO.FLOAT64:
-
-        CODIGO_SALIDA += izq3D.codigo +"\n"
-        CODIGO_SALIDA += der3D.codigo +"\n"
-        CODIGO_SALIDA += f'{TEMP1} = {izq3D.temporal} - {der3D.temporal};\n'
-
-        RETORNO.iniciarRetorno(CODIGO_SALIDA,"",TEMP1,TIPO_DATO.FLOAT64)
+        RETORNO.iniciarRetorno(CODIGO_SALIDA,"",TEMP1,izq3D.tipo)
 
     return  RETORNO
 

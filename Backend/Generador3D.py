@@ -7,7 +7,6 @@ class Generador3D:
         self.main = ""
         self.funciones = ""
 
-
     def obtenerTemporal(self):
         temp = "t" + self.temporales.__str__()
         self.temporales  += 1
@@ -15,7 +14,7 @@ class Generador3D:
 
     def obtenerEtiqueta(self):
 
-        et = "L"+self.etiquetas.__str__()
+        et = "L" + self.etiquetas.__str__()
         self.etiquetas += 1
         return et
 

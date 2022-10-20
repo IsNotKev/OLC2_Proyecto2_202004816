@@ -1,5 +1,5 @@
 from lib2to3.refactor import RefactoringTool
-from ts import Simbolo, TIPO_DATO, RetornoType
+from ts import Simbolo, TIPO_DATO, TIPO_VAR, RetornoType
 from expresiones import *
 from instrucciones import *
 import ts as TS
@@ -130,6 +130,66 @@ def procesar_break(etiquetaSalida):
 
 def procesar_for(instr,ts,Generador3D):
     CODIGO_SALIDA = ""
+
+    rango = resolverExpresion(instr.rango, ts, Generador3D)
+
+    if rango.tipo == TIPO_DATO.ARRAY or rango.tipo == TIPO_DATO.VECTOR:
+        
+        cont = Generador3D.obtenerTemporal()
+        max = Generador3D.obtenerTemporal()
+
+        temp2 = Generador3D.obtenerTemporal()
+        temp3 = Generador3D.obtenerTemporal()
+        temp4 = Generador3D.obtenerTemporal()
+
+        etiquetaInicio = Generador3D.obtenerTemporal()
+        etiquetaCod = Generador3D.obtenerTemporal()
+        etiquetaFin = Generador3D.obtenerTemporal()
+
+        CODIGO_SALIDA += rango.codigo
+
+        CODIGO_SALIDA += "/* Sentencia For In */\n"
+
+        CODIGO_SALIDA += f'{cont} = 0;\n'
+        CODIGO_SALIDA += f"{max} = Heap[(int) {rango.temporal}]; /*OBTENIENDO TAMAÑO DE ARREGLO*/\n "
+
+        CODIGO_SALIDA += f'{etiquetaInicio}:\n'
+
+        #nuevoAcceso = ExpresionId
+
+        #nuevaDefinicion = Definicion(instr.id,TIPO_VAR.MUTABLE, TIPO_DATO.VOID, expresionResuelta)
+        #CODIGO_SALIDA += procesar_definicion(nuevaDefinicion,ENTORNO_FOR, Generador3D, puntero_entorno_nuevo)
+        
+        CODIGO_SALIDA += f'if ({cont} < {max}) goto {etiquetaCod};\n' \
+                         f'goto {etiquetaFin};\n'
+
+        CODIGO_SALIDA += f'{etiquetaCod}:\n'
+
+        CODIGO_SALIDA += f"{temp2} = {rango.temporal} + 1;\n"
+        CODIGO_SALIDA += f"{temp3} = {temp2} + {cont};\n"
+        CODIGO_SALIDA += f"{temp4} = Heap[(int) {temp3}];\n"
+
+        temp1 = Generador3D.obtenerTemporal() 
+
+        retornoAux = RetornoType()
+        retornoAux.iniciarRetorno("","",temp4, rango.tipo2)
+
+        direccionRelativa = len(ts.simbolos)
+
+        CODIGO_SALIDA += f"/* ASIGNANDO VARIABLE  {instr.id}*/\n"
+        CODIGO_SALIDA += f'{temp1} = S + {direccionRelativa};\n'
+        CODIGO_SALIDA += f'Stack[(int) {temp1}] = {temp4};\n' 
+
+        simboloAux = Simbolo(instr.id,TIPO_VAR.MUTABLE, TIPO_DATO.VOID, retornoAux, direccionRelativa)
+        ts.agregarSimbolo(simboloAux)
+
+        CODIGO_SALIDA += generarC3DInstrucciones(instr.instrucciones, ts, Generador3D, etiquetaInicio, etiquetaFin)
+
+        CODIGO_SALIDA += f'\n{cont} = {cont} + 1;\n'
+
+        CODIGO_SALIDA += f'\ngoto {etiquetaInicio};\n'
+
+        CODIGO_SALIDA += f'{etiquetaFin}:\n'
 
     return CODIGO_SALIDA
 
@@ -407,7 +467,7 @@ def procesar_imprimir(instr, ts, Generador3D):
                     CODIGO_SALIDA += paraminprint.codigo
                     CODIGO_SALIDA += f'\nprintf(\"%d\", (int){paraminprint.temporal}); \n'
                 else:
-                    print(paraminprint.tipo)
+                    print("No se puede imprimir: ", paraminprint.tipo)
 
                 CODIGO_SALIDA_TOT += CODIGO_SALIDA 
             contador += 1           
@@ -466,6 +526,59 @@ def resolverExpresion(exp, ts, Generador3D):
     elif isinstance(exp, Llamado): return procesar_llamado(exp,ts,Generador3D)
     elif isinstance(exp, ExpresionArray): return resolverArray(exp, ts, Generador3D)
     elif isinstance(exp, ExpresionIdVectorial): return AccesoArreglo(exp, ts, Generador3D)
+    elif isinstance(exp, ExpresionRango): return resolverRango(exp, ts, Generador3D)
+
+def resolverRango(exp, ts, Generador3D):
+    retorno = RetornoType()
+    CODIGO = ""
+
+    inicio = resolverExpresion(exp.inicio, ts, Generador3D)
+    fin = resolverExpresion(exp.fin, ts, Generador3D)
+
+    if inicio.tipo == TIPO_DATO.INT64 and fin.tipo == TIPO_DATO.INT64:
+
+        temp1 = Generador3D.obtenerTemporal()
+        temp2 = Generador3D.obtenerTemporal()
+        cont = Generador3D.obtenerTemporal()
+        contAux = Generador3D.obtenerTemporal()
+        
+        etiquetaInicio = Generador3D.obtenerEtiqueta()
+        etiquetaCod = Generador3D.obtenerEtiqueta()
+        etiquetaFin = Generador3D.obtenerEtiqueta()
+
+        CODIGO += inicio.codigo + "\n"
+        CODIGO += fin.codigo + "\n"
+        CODIGO += "/* GENERANDO RANGO */\n"
+
+        CODIGO += f"{temp1} = H; /*Posicion de referencia en HEAP*/\n"
+        CODIGO += f"{temp2} = {temp1};\n"
+
+        CODIGO += f"{cont} = {inicio.temporal};\n"
+        CODIGO += f"{contAux} = 0;\n"
+
+        CODIGO += f'{etiquetaInicio}:\n'
+        CODIGO += f'if ({cont}<{fin.temporal}) goto {etiquetaCod};\n' \
+                  f'goto {etiquetaFin};\n'
+
+        CODIGO += f'{etiquetaCod}:\n'
+
+        CODIGO += f'{temp2} = {temp2} + 1;\n' \
+                  f'Heap[(int){temp2}] = {cont};\n'
+
+
+        CODIGO += f'{cont} = {cont} + 1;\n' \
+                  f'{contAux} = {contAux} + 1;\n' \
+                  f'goto {etiquetaInicio};\n'
+
+        CODIGO += f'{etiquetaFin}:\n'
+
+        CODIGO += f'Heap[(int){temp1}] = {contAux};\n'
+        CODIGO += f'H = H + 1;\n'
+        CODIGO += f'H = H + {contAux};\n'
+        
+
+        retorno.iniciarRetorno(CODIGO, "", temp1, TIPO_DATO.ARRAY, [1], inicio.tipo)
+    return retorno
 
 def AccesoArreglo(exp, ts, Generador3D):
     retorno = RetornoType()
@@ -502,8 +615,7 @@ def AccesoArreglo(exp, ts, Generador3D):
 
 def accederAPosicion(listaExpresiones, temporal, ts, Generador3D):
     CODIGO_SALIDA = "/*ACCEDIENDO A X POSICION*/\n"
-
-    
+  
     expresionX: RetornoType = listaExpresiones.pop(0)
 
     temp1 = Generador3D.obtenerTemporal()
@@ -893,10 +1005,10 @@ def resolverIdentificador(exp, ts, Generador):
         #    CODIGO_SALIDA += f"if ( {TEMP2} == 1 ) goto {self.etiquetaVerdadera};\n"
         #    CODIGO_SALIDA += f"goto {self.etiquetaFalsa}; \n"
         #    retorno.etiquetaV = self.etiquetaVerdadera
-        #    retorno.etiquetaF = self.etiquetaFalsa
+        #    retorno.etiquetaF = self.etiquetaFalsa 
 
 
-        retorno.iniciarRetorno(CODIGO_SALIDA,"",TEMP2,simbolo.tipo_dato)
+        retorno.iniciarRetorno(CODIGO_SALIDA,"",TEMP2,simbolo.tipo_dato, tipo2= simbolo.valor.tipo2)
     
     return retorno
 

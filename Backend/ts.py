@@ -125,7 +125,7 @@ class TablaDeSimbolos() :
             if simbolo.tipo_dato != TIPO_DATO.VOID:
                 if simbolo.tipo_dato == simbolo.valor.tipo:        
                     self.simbolos[simbolo.id] = simbolo
-                elif simbolo.tipo_dato == TIPO_DATO.USIZE and simbolo.valor.tipo == TIPO_DATO.INT64 and simbolo.valor.val >= 0:
+                elif simbolo.tipo_dato == TIPO_DATO.USIZE and simbolo.valor.tipo == TIPO_DATO.INT64:
                     self.simbolos[simbolo.id] = simbolo
                 else:                 
                     print('Error al asignar',simbolo.id, simbolo.valor.tipo, simbolo.tipo_dato)

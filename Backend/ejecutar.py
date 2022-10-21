@@ -415,7 +415,7 @@ def procesar_imprimir(instr, ts, Generador3D):
             if contador < len(instr.parametros):
                 CODIGO_SALIDA = ""
                 paraminprint = resolverExpresion(instr.parametros[contador], ts, Generador3D)
-                if paraminprint.tipo == TIPO_DATO.INT64:
+                if paraminprint.tipo == TIPO_DATO.INT64 or paraminprint.tipo == TIPO_DATO.USIZE:
                     CODIGO_SALIDA += "/* IMPRIMIENDO UN VALOR ENTERO*/\n"
                     CODIGO_SALIDA += paraminprint.codigo
                     CODIGO_SALIDA += f'\nprintf(\"%d\", (int){paraminprint.temporal}); \n'
@@ -590,6 +590,7 @@ def AccesoArreglo(exp, ts, Generador3D):
             temp1 = Generador3D.obtenerTemporal()
             temp2 = Generador3D.obtenerTemporal()
             etiqueta = Generador3D.obtenerEtiqueta()
+            etiqueta2 = Generador3D.obtenerEtiqueta()
 
             CODIGO_SALIDA = "/* ACCESO A UN ARREGLO*/\n"
             CODIGO_SALIDA += f"{temp1} = S + {instanciaArreglo.direccionRelativa};\n"
@@ -606,8 +607,24 @@ def AccesoArreglo(exp, ts, Generador3D):
             resultado = accederAPosicion(listaExpresionesCompiladas, temp2, ts, Generador3D)
 
             CODIGO_SALIDA += resultado.codigo
+            CODIGO_SALIDA += f"\ngoto {etiqueta2};\n"
             CODIGO_SALIDA = CODIGO_SALIDA.replace("salida_arreglo_x",etiqueta)
             CODIGO_SALIDA += f"{etiqueta}:\n"
+
+            CODIGO_SALIDA += f'printf("%c", 66); //B\n' \
+                             f'printf("%c", 111); //o\n' \
+                             f'printf("%c", 117); //u\n' \
+                             f'printf("%c", 110); //n\n' \
+                             f'printf("%c", 100); //d\n' \
+                             f'printf("%c", 115); //s\n' \
+                             f'printf("%c", 69); //E\n' \
+                             f'printf("%c", 114); //r\n' \
+                             f'printf("%c", 114); //r\n' \
+                             f'printf("%c", 111); //o\n' \
+                             f'printf("%c", 114); //r\n' \
+                             f'printf("%c", 10);\n'
+
+            CODIGO_SALIDA += f"{etiqueta2}:\n"
 
             retorno.iniciarRetorno(CODIGO_SALIDA,"",resultado.temporal, instanciaArreglo.valor.tipo2)
 
@@ -625,7 +642,8 @@ def accederAPosicion(listaExpresiones, temporal, ts, Generador3D):
 
 
     CODIGO_SALIDA += f"{temp1} = Heap[(int) {temporal}]; /*OBTENIENDO TAMAÑO DE ARREGLO*/\n "
-    CODIGO_SALIDA += f" if ({expresionX.temporal} > {temp1}) goto salida_arreglo_x;\n"
+    CODIGO_SALIDA += f" if ({expresionX.temporal} < 0) goto salida_arreglo_x;\n"
+    CODIGO_SALIDA += f" if ({expresionX.temporal} >= {temp1}) goto salida_arreglo_x;\n"
     CODIGO_SALIDA += f"{temp2} = {temporal} + 1;\n"
     CODIGO_SALIDA += f"{temp3} = {temp2} + {expresionX.temporal};\n"
     CODIGO_SALIDA += f"{temp4} = Heap[(int) {temp3}];\n"
@@ -1028,7 +1046,7 @@ def operacionModulo(exp, ts, Generador3D):
 
     TEMP1 = Generador3D.obtenerTemporal()
 
-    if izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.INT64 :
+    if (izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.INT64) or (izq3D.tipo == TIPO_DATO.USIZE and der3D.tipo == TIPO_DATO.INT64) or (izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.USIZE):
 
         CODIGO_SALIDA += izq3D.codigo +"\n"
         CODIGO_SALIDA += der3D.codigo +"\n"
@@ -1053,21 +1071,42 @@ def operacionDivi(exp, ts, Generador3D):
     izq3D = resolverExpresion(exp.exp1, ts, Generador3D)
     der3D = resolverExpresion(exp.exp2, ts, Generador3D)
 
+    etiquetaV= Generador3D.obtenerEtiqueta()
+    etiquetaF= Generador3D.obtenerEtiqueta()
+    etiquetaSalida = Generador3D.obtenerEtiqueta()
+
     TEMP1 = Generador3D.obtenerTemporal()
 
-    if izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.INT64 :
+    CODIGO_SALIDA += izq3D.codigo +"\n"
+    CODIGO_SALIDA += der3D.codigo +"\n"
 
-        CODIGO_SALIDA += izq3D.codigo +"\n"
-        CODIGO_SALIDA += der3D.codigo +"\n"
-        CODIGO_SALIDA += f'{TEMP1} = {izq3D.temporal} / {der3D.temporal};\n'
+    CODIGO_SALIDA += f'if({der3D.temporal} != 0) goto {etiquetaV};\n' \
+                     f'goto {etiquetaF};\n'
 
+    CODIGO_SALIDA += f'{etiquetaV}:\n'
+    CODIGO_SALIDA += f'{TEMP1} = {izq3D.temporal} / {der3D.temporal};\n' \
+                     f'goto {etiquetaSalida};\n'
+
+    CODIGO_SALIDA += f'{etiquetaF}:\n'
+
+    CODIGO_SALIDA += f'printf("%c",77); //M\n'\
+                     f'printf("%c",97); //a\n'\
+                     f'printf("%c",116); //t\n'\
+                     f'printf("%c",104); //h\n'\
+                     f'printf("%c",69); //E\n'\
+                     f'printf("%c",114); //r\n'\
+                     f'printf("%c",114); //r\n'\
+                     f'printf("%c",111); //o\n'\
+                     f'printf("%c",114); //r\n' \
+                     f'printf("%c",10);\n'
+
+    CODIGO_SALIDA += f'{TEMP1} = 0;\n'
+
+    CODIGO_SALIDA += f'{etiquetaSalida}:\n'
+
+    if (izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.INT64) or (izq3D.tipo == TIPO_DATO.USIZE and der3D.tipo == TIPO_DATO.INT64) or (izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.USIZE):
         RETORNO.iniciarRetorno(CODIGO_SALIDA,"",TEMP1,TIPO_DATO.INT64)
     elif izq3D.tipo == TIPO_DATO.FLOAT64 and der3D.tipo == TIPO_DATO.FLOAT64:
-
-        CODIGO_SALIDA += izq3D.codigo +"\n"
-        CODIGO_SALIDA += der3D.codigo +"\n"
-        CODIGO_SALIDA += f'{TEMP1} = {izq3D.temporal} / {der3D.temporal};\n'
-
         RETORNO.iniciarRetorno(CODIGO_SALIDA,"",TEMP1,TIPO_DATO.FLOAT64)
 
     return  RETORNO
@@ -1082,7 +1121,7 @@ def operacionMulti(exp, ts, Generador3D):
 
         TEMP1 = Generador3D.obtenerTemporal()
 
-        if izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.INT64 :
+        if (izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.INT64) or (izq3D.tipo == TIPO_DATO.USIZE and der3D.tipo == TIPO_DATO.INT64) or (izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.USIZE):
 
             CODIGO_SALIDA += izq3D.codigo +"\n"
             CODIGO_SALIDA += der3D.codigo +"\n"
@@ -1108,7 +1147,7 @@ def operacionResta(exp, ts, Generador3D):
 
     TEMP1 = Generador3D.obtenerTemporal()
 
-    if (izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.INT64 ) or (izq3D.tipo == TIPO_DATO.FLOAT64 and der3D.tipo == TIPO_DATO.FLOAT64):
+    if (izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.INT64) or (izq3D.tipo == TIPO_DATO.USIZE and der3D.tipo == TIPO_DATO.INT64) or (izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.USIZE) or (izq3D.tipo == TIPO_DATO.FLOAT64 and der3D.tipo == TIPO_DATO.FLOAT64):
 
         CODIGO_SALIDA += izq3D.codigo +"\n"
         CODIGO_SALIDA += der3D.codigo +"\n"
@@ -1128,7 +1167,7 @@ def operacionSuma(exp, ts, Generador3D):
 
         TEMP1 = Generador3D.obtenerTemporal()
 
-        if izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.INT64 :
+        if (izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.INT64) or (izq3D.tipo == TIPO_DATO.USIZE and der3D.tipo == TIPO_DATO.INT64) or (izq3D.tipo == TIPO_DATO.INT64 and der3D.tipo == TIPO_DATO.USIZE):
 
             CODIGO_SALIDA += izq3D.codigo +"\n"
             CODIGO_SALIDA += der3D.codigo +"\n"
@@ -1255,6 +1294,9 @@ def resolverCasteo(exp, ts, Generador3D):
         return valorExpresion
     elif valorExpresion.tipo == TIPO_DATO.INT64 and exp.casteo == TIPO_DATO.FLOAT64:
         valorExpresion.tipo == TIPO_DATO.FLOAT64
+        return valorExpresion
+    elif valorExpresion.tipo == TIPO_DATO.INT64 and exp.casteo == TIPO_DATO.USIZE:
+        valorExpresion.tipo == TIPO_DATO.USIZE
         return valorExpresion
     elif valorExpresion.tipo == TIPO_DATO.FLOAT64 and exp.casteo == TIPO_DATO.INT64:
         valorExpresion.tipo == TIPO_DATO.INT64

@@ -334,7 +334,8 @@ def p_instrdmatch(t):
                             |   while_instr
                             |   funcion_instr
                             |   llamado_instr
-                            |   match_instr'''
+                            |   match_instr
+                            |   return_instr'''
     t[0] = t[1]
 
 def p_expresion_id(t):

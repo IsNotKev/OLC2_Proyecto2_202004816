@@ -1,4 +1,5 @@
 from lib2to3.refactor import RefactoringTool
+from tkinter import NE
 from xml.dom import IndexSizeErr
 from ts import Simbolo, TIPO_DATO, TIPO_VAR, RetornoType
 from expresiones import *
@@ -27,6 +28,44 @@ def procesar_instrucciones(instr, ts, Generador3D, etiquetaInicio = "", etiqueta
     elif isinstance(instr, Continue): return procesar_continue(etiquetaInicio)
     elif isinstance(instr, Llamado): return procesar_llamado(instr, ts, Generador3D).codigo
     elif isinstance(instr, Return): return procesar_return(instr, ts, Generador3D)
+    elif isinstance(instr, Match): return procesar_match(instr, ts, Generador3D, etiquetaInicio, etiquetaSalida)
+
+def procesar_match(instr, ts, Generador3D, etiquetaInicio, etiquetaFin):
+    CODIGO_SALIDA = ""
+    INSTRUCCIONES = ""
+
+    exp = resolverExpresion(instr.exp, ts, Generador3D)
+
+    CODIGO_SALIDA += exp.codigo + "\n"
+
+    CODIGO_SALIDA += "/* MATCH */\n"
+
+    etiquetaSalida = Generador3D.obtenerEtiqueta()
+
+    for opcionMatch in instr.opciones:
+        nEti = Generador3D.obtenerEtiqueta()
+
+        if opcionMatch.coincidencias == TIPO_DATO.VOID:
+            CODIGO_SALIDA += f'goto {nEti};\n'
+        else:
+            for coincidencia in opcionMatch.coincidencias:
+                coin = resolverExpresion(coincidencia, ts, Generador3D)
+
+                if coin.tipo == exp.tipo:
+                    CODIGO_SALIDA += coin.codigo + "\n"
+                    CODIGO_SALIDA += f'if ({exp.temporal} == {coin.temporal}) goto {nEti};\n'
+        
+        
+        INSTRUCCIONES += f'{nEti}:\n'
+        INSTRUCCIONES += generarC3DInstrucciones(opcionMatch.instrucciones, ts, Generador3D, etiquetaInicio, etiquetaFin) + "\n"
+        INSTRUCCIONES += f'goto {etiquetaSalida};\n'
+    
+
+    CODIGO_SALIDA += INSTRUCCIONES
+    
+    CODIGO_SALIDA += f'{etiquetaSalida}:\n'
+
+    return CODIGO_SALIDA
 
 def procesar_return(instr, ts, Generador3D):
     CODIGO_SALIDA = ""

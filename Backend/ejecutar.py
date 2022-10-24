@@ -1,4 +1,5 @@
 from lib2to3.refactor import RefactoringTool
+from xml.dom import IndexSizeErr
 from ts import Simbolo, TIPO_DATO, TIPO_VAR, RetornoType
 from expresiones import *
 from instrucciones import *
@@ -527,6 +528,81 @@ def resolverExpresion(exp, ts, Generador3D):
     elif isinstance(exp, ExpresionArray): return resolverArray(exp, ts, Generador3D)
     elif isinstance(exp, ExpresionIdVectorial): return AccesoArreglo(exp, ts, Generador3D)
     elif isinstance(exp, ExpresionRango): return resolverRango(exp, ts, Generador3D)
+    elif isinstance(exp, Len): return resolverLen(exp, ts, Generador3D)
+
+def resolverValoresRepetidos(exp,ts,Generador3D):
+    retorno = RetornoType()
+    CODIGO_FINAL = ""
+
+    data = resolverExpresion(exp.val.dato, ts, Generador3D)
+    cant = resolverExpresion(exp.val.cant, ts, Generador3D)
+
+    if cant.tipo == TIPO_DATO.INT64 or cant.tipo == TIPO_DATO.USIZE:
+
+        listaDimensiones = [1]
+        tipo = data.tipo
+
+        CODIGO_FINAL += data.codigo + "\n"
+        CODIGO_FINAL += cant.codigo + "\n"
+
+        temp1 = Generador3D.obtenerTemporal()
+        temp2 = Generador3D.obtenerTemporal()
+        index = Generador3D.obtenerTemporal()
+
+        etiquetaInit = Generador3D.obtenerEtiqueta()
+        etiquetaFin = Generador3D.obtenerEtiqueta()
+
+        CODIGO_FINAL += f"{temp1} = H;/*Posicion de referencia en HEAP*/\n"    
+        
+        CODIGO_FINAL += f"H = H + 1;  \n"
+        CODIGO_FINAL += f"H = H + {cant.temporal};  \n"
+        CODIGO_FINAL += f"Heap[(int) {temp1} ] = {cant.temporal}; /*Valor que almacena el tamaño*/\n"
+        CODIGO_FINAL += f'{index} = 1;\n'
+
+        CODIGO_FINAL += "/* VALORES REPETIDOS */\n"
+
+        CODIGO_FINAL += f'{etiquetaInit}:\n'
+
+        if (data.valor != None):
+            CODIGO_FINAL += "/* referenciando a un sub-arreglo*/\n"
+            CODIGO_FINAL += data.codigo +"\n"
+            CODIGO_FINAL += f"{temp2} = {temp1} + {index};\n"
+            CODIGO_FINAL += f"Heap[(int) {temp2}] = {data.temporal};\n"
+            listaDimensiones.extend(data.valor)  # ALMACENAR EL TAMAÑO DE UNA DIMENSION
+            tipo = data.tipo2
+        else:
+            CODIGO_FINAL += "/* almacenando un valor String, bool, int o float */\n"
+            CODIGO_FINAL += data.codigo + "\n"
+            CODIGO_FINAL += f"{temp2} = {temp1} + {index};\n"
+            CODIGO_FINAL += f"Heap[(int) {temp2}] = {data.temporal};\n"
+
+        CODIGO_FINAL += f'if ({index} == {cant.temporal}) goto {etiquetaFin}; \n'
+        CODIGO_FINAL += f'{index} = {index} + 1;\n' \
+                        f'goto {etiquetaInit};\n'
+
+        CODIGO_FINAL += f'{etiquetaFin}:\n'
+
+        retorno.iniciarRetorno(CODIGO_FINAL, "", temp1, TIPO_DATO.ARRAY, listaDimensiones, tipo )
+
+    return retorno
+
+def resolverLen(exp, ts, Generador3D):
+    retorno = RetornoType()
+    CODIGO = ""
+
+    vv = resolverExpresion(exp.dato, ts, Generador3D)
+
+    if vv.tipo == TIPO_DATO.ARRAY or vv.tipo == TIPO_DATO.VECTOR:
+        temp1 = Generador3D.obtenerTemporal()
+
+        CODIGO += vv.codigo + "\n"
+
+        CODIGO += "/* LEN */\n"
+        CODIGO += f"{temp1} = Heap[(int) {vv.temporal}]; /*OBTENIENDO TAMAÑO DE ARREGLO*/\n "
+
+        retorno.iniciarRetorno(CODIGO, "", temp1, TIPO_DATO.INT64)
+
+    return retorno
 
 def resolverRango(exp, ts, Generador3D):
     retorno = RetornoType()
@@ -623,6 +699,7 @@ def AccesoArreglo(exp, ts, Generador3D):
                              f'printf("%c", 111); //o\n' \
                              f'printf("%c", 114); //r\n' \
                              f'printf("%c", 10);\n'
+            CODIGO_SALIDA += f'{resultado.temporal} = 0;\n'
 
             CODIGO_SALIDA += f"{etiqueta2}:\n"
 
@@ -669,12 +746,17 @@ def compilarDimensiones(exp, ts, Generador3D):
     return  dimensiones
 
 def resolverArray(exp, ts, Generador3D):
+
+    if isinstance(exp.val, ValoresRepetidos):
+        return resolverValoresRepetidos(exp,ts,Generador3D)
+
     retorno = RetornoType()
     CODIGO_FINAL = ""
 
     listaDimensiones = []
     temp1 = Generador3D.obtenerTemporal()
     temp2 = Generador3D.obtenerTemporal()
+    index = Generador3D.obtenerTemporal()
 
     CODIGO_FINAL += f"{temp1} = H;/*Posicion de referencia en HEAP*/\n"
 
@@ -685,23 +767,27 @@ def resolverArray(exp, ts, Generador3D):
     listaDimensiones.append(len(expresionesCompiladas)) # ALMACENAR EL TAMAÑO DE UNA DIMENSION
     CODIGO_FINAL += f"H = H + {len(expresionesCompiladas) + 1};  \n"
     CODIGO_FINAL += f"Heap[(int) {temp1} ] = {len(expresionesCompiladas)}; /*Valor que almacena el tamaño*/\n"
-    index = 1
+    CODIGO_FINAL += f'{index} = 1;\n'
+    #index = 1
 
+    primero = True
     for expr in expresionesCompiladas:
         if (expr.valor != None):
             CODIGO_FINAL += "/* referenciando a un sub-arreglo*/\n"
             CODIGO_FINAL += expr.codigo +"\n"
             CODIGO_FINAL += f"{temp2} = {temp1} + {index};\n"
             CODIGO_FINAL += f"Heap[(int) {temp2}] = {expr.temporal};\n"
-            if(index == 1 ):
+            if(primero):
                 listaDimensiones.extend(expr.valor)  # ALMACENAR EL TAMAÑO DE UNA DIMENSION
-            tipo = expr.tipo2 
+                primero = False
+            tipo = expr.tipo2
         else:
             CODIGO_FINAL += "/* almacenando un valor String, bool, int o float */\n"
             CODIGO_FINAL += expr.codigo + "\n"
             CODIGO_FINAL += f"{temp2} = {temp1} + {index};\n"
             CODIGO_FINAL += f"Heap[(int) {temp2}] = {expr.temporal};\n"
-        index += 1
+        CODIGO_FINAL += f'{index} = {index} + 1; \n'
+        #index += 1
     
     retorno.iniciarRetorno(CODIGO_FINAL, "", temp1, TIPO_DATO.ARRAY, listaDimensiones, tipo)
     return retorno

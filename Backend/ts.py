@@ -25,13 +25,15 @@ class TIPO_VAR(Enum):
 
 class RetornoType:
 
-    def __init__(self, tipo=TIPO_DATO.VOID):
+    def __init__(self, tipo=TIPO_DATO.VOID, tipo2=TIPO_DATO.VOID, valor = None):
         self.codigo = ""
         self.etiqueta = ""
         self.temporal = ""
         self.tipo = tipo
         self.etiquetaV = ""
         self.etiquetaF = ""
+        self.valor = valor
+        self.tipo2 = tipo2
 
     def iniciarRetorno(self, codigo, etiqueta, temporal, tipo, valor = None, tipo2 = None):
         self.codigo = codigo
@@ -270,3 +272,16 @@ class TablaDeSimbolos() :
             else:
                 print('No se puede actualizar una variable Inmutable')
                 return None
+    
+    def obtenerTSimbolos(self):
+        salida = {}
+
+        cont = 0
+        for clave in self.simbolos:
+            aux = {}
+            aux['id'] = self.simbolos[clave].id
+            aux['tipo_dato'] = self.simbolos[clave].tipo_dato
+            salida['simbolo' + str(cont)] = aux
+            cont += 1
+
+        return salida

@@ -33,8 +33,11 @@ def ejecutar():
     salida = "No Existe Función Main."
   
   salida = Generador3DInstancia.generarMain()
+  simbolos = ts_global.obtenerTSimbolos()
+
   objeto = {
-            'Mensaje': salida
+            'Mensaje': salida,
+            'simbolos': simbolos
         }
 
   return jsonify(objeto)

@@ -8,6 +8,7 @@ import Editor from "@monaco-editor/react";
 function App() {
 
   const editorRef = useRef(null);
+  let simbolos = null;
 
   function handleEditorDidMount(editor, monaco) {
     editorRef.current = editor;
@@ -36,11 +37,18 @@ function App() {
       })
       .then(response => {
         document.getElementById('consola').textContent = response.Mensaje;
+        simbolos = response.simbolos
       })
     }else{
       alert("Escriba código para ejecutar.")
     }
     
+  }
+
+  function verSimbolos(){
+    if (simbolos != null ){
+      console.log(simbolos)
+    }  
   }
 
   return (
@@ -71,7 +79,7 @@ function App() {
                     Reportes
                   </a>
                   <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" style={{ cursor: 'pointer' }}>Reporte de tabla de símbolos</a></li>
+                    <li><a class="dropdown-item" style={{ cursor: 'pointer' }} data-bs-toggle="modal" data-bs-target="#modalSimbolos" onClick={verSimbolos}>Reporte de tabla de símbolos</a></li>
                     <li><a class="dropdown-item" style={{ cursor: 'pointer' }}>Reporte de errores</a></li>
                     <li><a class="dropdown-item" style={{ cursor: 'pointer' }}>Reporte de base de datos existente</a></li>
                     <li><a class="dropdown-item" style={{ cursor: 'pointer' }}>Reporte de optimización</a></li>
@@ -104,8 +112,35 @@ function App() {
           />
           <textarea disabled style={{ width: '70vh', height: '75vh', background: 'black', color: 'white', fontSize: '13px' }} id="consola"></textarea>
         </div>
-
       </header>
+
+      <div class="modal fade" id="modalSimbolos" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="exampleModalLabel">Tabla De Simbolos</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table table-striped" style={{ width: '80%', margin: 'auto' }}>
+                <thead class="table table-dark">
+                  <tr>
+                    <th scope="col">IDENTIFICADOR</th>
+                    <th scope="col">TIPO</th>
+                    <th scope="col">TIPO DE DATO</th>
+                    <th scope="col">ENTORNO</th>
+                  </tr>
+                </thead>
+                <tbody id='tsimbolos'>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 from lib2to3.refactor import RefactoringTool
 from tkinter import NE
+from turtle import clone
 from xml.dom import IndexSizeErr
 from ts import Simbolo, TIPO_DATO, TIPO_VAR, RetornoType
 from expresiones import *
@@ -572,13 +573,6 @@ def procesar_imprimir(instr, ts, Generador3D):
                     CODIGO_SALIDA += f'{etqCiclo}: \n'
                     CODIGO_SALIDA += f'{caracter} = Heap[(int){temp1}];\n'
 
-                    #CODIGO_SALIDA += f'if({caracter} != 1 ) goto {etqAuxiliar};\n'
-                    #CODIGO_SALIDA += f'     {temp1} = {temp1} + 1;\n'
-                    #CODIGO_SALIDA += f'{caracter} = Heap[(int){temp1}];\n'
-                    #CODIGO_SALIDA += f'printf(\"%d\", (int){caracter}); \n'
-                    #CODIGO_SALIDA += f'     {temp1} = {temp1} + 1;\n'
-                    #CODIGO_SALIDA += f'got {etqCiclo}; '
-
                     CODIGO_SALIDA += f'{etqAuxiliar}: \n'
                     CODIGO_SALIDA += f'if ({caracter} == 0) goto {etqSalida};\n' \
                                     f'     printf(\"%c\",(char) {caracter});\n' \
@@ -664,7 +658,6 @@ def imprimirArreglo(exp, ts, Generador3D):
     return CODIGO_SALIDA
 
 def imprimirArrayRecursivo(cont, tipo, temp2, temp1, Generador3D, contador):
-    print(cont)
     CODIGO_SALIDA = ""
 
     etiquetaInicio = Generador3D.obtenerEtiqueta()
@@ -686,6 +679,26 @@ def imprimirArrayRecursivo(cont, tipo, temp2, temp1, Generador3D, contador):
             CODIGO_SALIDA += "/* IMPRIMIENDO UN VALOR DECIMAL*/\n"
             CODIGO_SALIDA += f'{temp3} = Heap[(int){temp2}];'
             CODIGO_SALIDA += f'\nprintf(\"%f\", (float){temp3}); \n'
+        elif tipo == TIPO_DATO.STRING or tipo == TIPO_DATO.ISTRING:
+
+            temp3 = Generador3D.obtenerTemporal()
+            caracter = Generador3D.obtenerTemporal()
+            etqCiclo = Generador3D.obtenerEtiqueta()
+            etqSalida = Generador3D.obtenerEtiqueta()
+            etqAuxiliar = Generador3D.obtenerEtiqueta()
+
+            CODIGO_SALIDA += "/* IMPRIMIENDO UN VALOR CADENA*/\n"
+            CODIGO_SALIDA += f'{temp3} = Heap[(int){temp2}];'
+            CODIGO_SALIDA += f'{etqCiclo}: \n'
+            CODIGO_SALIDA += f'{caracter} = Heap[(int){temp3}];\n'
+
+            CODIGO_SALIDA += f'{etqAuxiliar}: \n'
+            CODIGO_SALIDA += f'if ({caracter} == 0) goto {etqSalida};\n' \
+                            f'     printf(\"%c\",(char) {caracter});\n' \
+                            f'     {temp3} = {temp3} + 1;\n' \
+                            f'     goto {etqCiclo};\n'
+
+            CODIGO_SALIDA += f'{etqSalida}:\n'
 
         CODIGO_SALIDA += f'if ({contador} == {temp1}) goto {etiquetaNext};\n'
         CODIGO_SALIDA += f'printf(\"%c\",(int)44);\n'
@@ -751,6 +764,55 @@ def resolverExpresion(exp, ts, Generador3D):
     elif isinstance(exp, ExpresionIdVectorial): return AccesoArreglo(exp, ts, Generador3D)
     elif isinstance(exp, ExpresionRango): return resolverRango(exp, ts, Generador3D)
     elif isinstance(exp, Len): return resolverLen(exp, ts, Generador3D)
+    elif isinstance(exp, ExpresionIf): return resolverExpresionIf(exp, ts, Generador3D)
+
+def resolverExpresionIf(exp, ts, Generador3D):
+    retorno = RetornoType()
+
+    CODIGO_SALIDA = ""
+
+    ETIQUETA_SALIDA = Generador3D.obtenerEtiqueta()
+
+    etiquetaVerdadera = Generador3D.obtenerEtiqueta()
+    etiquetaFalso = Generador3D.obtenerEtiqueta()
+
+    expresionCondicion = resolverExpresion(exp.exp, ts, Generador3D)
+
+    res = Generador3D.obtenerTemporal()
+    
+    if expresionCondicion.tipo == TIPO_DATO.BOOLEAN:
+        CODIGO_SALIDA += "/* EXPRESION IF*/\n"
+        CODIGO_SALIDA += expresionCondicion.codigo
+        CODIGO_SALIDA += f'\nif ({expresionCondicion.temporal} == 1) goto {etiquetaVerdadera};\n'
+        CODIGO_SALIDA += f'goto {etiquetaFalso};\n'
+        CODIGO_SALIDA += f'{etiquetaVerdadera}: \n'
+        
+        resVer = resolverExpresion(exp.instrIfVerdadero, ts, Generador3D)
+
+        CODIGO_SALIDA += resVer.codigo + "\n"
+        CODIGO_SALIDA += f'{res} = {resVer.temporal};\n'
+
+        CODIGO_SALIDA += f' goto {ETIQUETA_SALIDA};\n'
+        CODIGO_SALIDA += f'{etiquetaFalso}: \n'
+
+        if isinstance(exp.instrIfFalso, ExpresionIf):
+            ifelse = resolverExpresionIf(exp.instrIfFalso, ts, Generador3D)
+            CODIGO_SALIDA += ifelse.codigo + "\n"
+            CODIGO_SALIDA += f'{res} = {ifelse.temporal};\n'
+        else:
+            resFalso = resolverExpresion(exp.instrIfFalso, ts, Generador3D)
+
+            CODIGO_SALIDA += resFalso.codigo + "\n"
+            CODIGO_SALIDA += f'{res} = {resFalso.temporal};\n'
+
+        CODIGO_SALIDA+= f'{ETIQUETA_SALIDA}: \n'
+
+        print(resVer.tipo)
+        retorno.iniciarRetorno(CODIGO_SALIDA, "", res, resVer.tipo)
+    else:
+        print("Error -> Expresion If necesita booleano")
+
+    return retorno
 
 def resolverValoresRepetidos(exp,ts,Generador3D):
     retorno = RetornoType()
@@ -823,6 +885,8 @@ def resolverLen(exp, ts, Generador3D):
         CODIGO += f"{temp1} = Heap[(int) {vv.temporal}]; /*OBTENIENDO TAMAÑO DE ARREGLO*/\n "
 
         retorno.iniciarRetorno(CODIGO, "", temp1, TIPO_DATO.INT64)
+    else:
+        print("No se puede obtener Len de: ", vv.tipo)
 
     return retorno
 
@@ -910,7 +974,6 @@ def AccesoArreglo(exp, ts, Generador3D):
 
             esArray = len(listaExpresionesCompiladas) < len(valorAux)
 
-
             for expr in listaExpresionesCompiladas:
                 CODIGO_SALIDA += expr.codigo + "\n"
 
@@ -937,7 +1000,6 @@ def AccesoArreglo(exp, ts, Generador3D):
 
             CODIGO_SALIDA += f"{etiqueta2}:\n"
 
-            
             if esArray:
                 instanciaArreglo.valor.valor = [1]
                 retorno.iniciarRetorno(CODIGO_SALIDA,"",resultado.temporal, instanciaArreglo.valor.tipo,valor=instanciaArreglo.valor, tipo2 = instanciaArreglo.valor.tipo2)
@@ -1086,7 +1148,7 @@ def resolverPotencia(exp, ts, Generador3D):
         else:
             print("Error -> No es del tipo correcto")
     else:
-        print("Error -> No se puede operar", exp1.tipo, exp2.tipo)
+        print("Error -> No se puede operar Potencia con: ", exp1.tipo, exp2.tipo)
 
     return RETORNO
 
@@ -1513,7 +1575,7 @@ def operacionSuma(exp, ts, Generador3D):
 
             RETORNO.iniciarRetorno(CODIGO_SALIDA,"",TEMP2,TIPO_DATO.STRING)
         else:
-            print("Error -> No se puede operar", izq3D.tipo, der3D.tipo)
+            print("Error -> No se puede operar Suma con:", izq3D.tipo, der3D.tipo)
 
         return  RETORNO
 
@@ -1621,5 +1683,7 @@ def resolverCasteo(exp, ts, Generador3D):
     elif valorExpresion.tipo == TIPO_DATO.CHAR and exp.casteo == TIPO_DATO.INT64:
         valorExpresion.tipo == TIPO_DATO.INT64
         return valorExpresion
+    else:
+        print("No se puede hacer casteo", valorExpresion.tipo , exp.casteo)
     
     return RetornoType()

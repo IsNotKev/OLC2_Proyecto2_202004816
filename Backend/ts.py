@@ -280,8 +280,36 @@ class TablaDeSimbolos() :
         for clave in self.simbolos:
             aux = {}
             aux['id'] = self.simbolos[clave].id
-            aux['tipo_dato'] = self.simbolos[clave].tipo_dato
+            aux['tipo_dato'] = self.obtenerT(self.simbolos[clave].tipo_dato)
+            aux['tipo_var'] = self.obtenerT(self.simbolos[clave].tipo_var)
+            aux['entorno'] = "Main"
+            salida['simbolo' + str(cont)] = aux
+            cont += 1
+
+        for funcion in self.funciones:
+            aux = {}
+
+            aux['id'] = self.funciones[funcion].id
+            aux['tipo_dato'] = self.obtenerT(self.funciones[funcion].tipo_dato)
+            aux['tipo_var'] = "Función"
+            aux['entorno'] = "Global"
+
             salida['simbolo' + str(cont)] = aux
             cont += 1
 
         return salida
+    
+    def obtenerT(self, tipo_dato):
+        if tipo_dato == TIPO_DATO.ARRAY: return "Array"
+        elif tipo_dato == TIPO_DATO.VECTOR: return "Vector"
+        elif tipo_dato == TIPO_DATO.USIZE: return "Usize"
+        elif tipo_dato == TIPO_DATO.INT64: return "I64"
+        elif tipo_dato == TIPO_DATO.FLOAT64: return "F64"
+        elif tipo_dato == TIPO_DATO.CHAR: return "Char"
+        elif tipo_dato == TIPO_DATO.STRING: return "String"
+        elif tipo_dato == TIPO_DATO.ISTRING: return "IString"
+        elif tipo_dato == TIPO_DATO.BOOLEAN: return "Boolean"
+        elif tipo_dato == TIPO_DATO.VOID: return "Void"
+        elif tipo_dato == TIPO_VAR.MUTABLE: return "Variable Mutable"
+        elif tipo_dato == TIPO_VAR.INMUTABLE: return "Variable Inmutable"
+        else: return "Saber"

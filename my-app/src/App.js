@@ -48,6 +48,15 @@ function App() {
   function verSimbolos(){
     if (simbolos != null ){
       console.log(simbolos)
+      let tabla = document.getElementById('tsimbolos')
+      var a = ''
+
+      for (let simbolo in simbolos){
+        a += '<tr><td>'+simbolos[simbolo].id+'</td><td>' + simbolos[simbolo].tipo_var + '</td><td>'+simbolos[simbolo].tipo_dato+'</td><td>'+simbolos[simbolo].entorno+'</td>'
+      }
+        
+
+      tabla.innerHTML = a
     }  
   }
 
